@@ -28,6 +28,7 @@ import sys
 import os
 import shelve
 import signal
+import shlex
 from subprocess import call, STDOUT, Popen, PIPE
 from select import select
 
@@ -127,9 +128,14 @@ class ProcessList(object):
 
 class StreamPlayer(object):
     """ Provides a callable to play a given url """
-    @classmethod
+
+    def __init__(self, cmd=['livestreamer']):
+        self.cmd = cmd
+
     def play(self, url, res):
-        return Popen(["livestreamer", url, res], stdout=PIPE, stderr=STDOUT)
+        cmd = list(self.cmd)
+        cmd.extend([url, res])
+        return Popen(cmd, stdout=PIPE, stderr=STDOUT)
 
 class StreamList(object):
 
@@ -149,14 +155,20 @@ class StreamList(object):
         else:
             self.streams = []
 
+        if not f.has_key('cmd'):
+            f['cmd'] = ['livestreamer']
+        self.cmd = f['cmd']
+
         self.store = f
+        self.store.sync()
 
         self.no_streams = self.streams == []
-        self.q = ProcessList(StreamPlayer.play)
+        self.q = ProcessList(StreamPlayer(self.cmd).play)
 
     def __del__(self):
         """ Stop playing streams and sync storage """
         self.q.terminate()
+        self.store['cmd'] = self.cmd
         self.store['streams'] = self.streams
         self.store.close()
 
@@ -234,6 +246,10 @@ class StreamList(object):
                         self.edit_stream('res')
                     elif c == ord('u'):
                         self.edit_stream('url')
+                    elif c == ord('l'):
+                        self.show_commandline()
+                    elif c == ord('L'):
+                        self.edit_commandline()
                     elif c == ord('a'):
                         self.prompt_new_stream()
                     elif c == ord('d'):
@@ -297,13 +313,16 @@ class StreamList(object):
         h.addstr( 8, 0, '  a     : add stream')
         h.addstr( 9, 0, '  d     : delete stream')
 
-        h.addstr(12, 0, 'NAVIGATION', curses.A_BOLD)
-        h.addstr(14, 0, '  j/up  : up one line')
-        h.addstr(15, 0, '  k/down: down one line')
-        h.addstr(16, 0, '  gg    : go to top')
-        h.addstr(17, 0, '  G     : go to bottom')
-        h.addstr(18, 0, '  h/?   : show this help')
-        h.addstr(19, 0, '  q     : quit')
+        h.addstr(11, 0, '  l     : show command line')
+        h.addstr(12, 0, '  L     : edit command line')
+
+        h.addstr(15, 0, 'NAVIGATION', curses.A_BOLD)
+        h.addstr(17, 0, '  j/up  : up one line')
+        h.addstr(18, 0, '  k/down: down one line')
+        h.addstr(19, 0, '  gg    : go to top')
+        h.addstr(20, 0, '  G     : go to bottom')
+        h.addstr(21, 0, '  h/?   : show this help')
+        h.addstr(22, 0, '  q     : quit')
 
         self.help_pad = h
 
@@ -562,6 +581,21 @@ class StreamList(object):
         self.redraw_status()
         self.redraw_stream_footer()
 
+    def show_commandline(self):
+        self.set_footer(' '.join(self.cmd))
+
+    def edit_commandline(self):
+        new_cmd = self.prompt_input('Command line (empty to cancel): ')
+        if new_cmd != '':
+            try:
+                cmd = shlex.split(new_cmd)
+            except:
+                return
+            self.cmd = cmd
+            self.q.call = StreamPlayer(self.cmd).play
+        self.redraw_status()
+        self.redraw_stream_footer()
+
     def prompt_new_stream(self):
         url = self.prompt_input('New stream URL (empty to cancel): ')
         name = url.split('/')[-1]
@@ -579,8 +613,13 @@ class StreamList(object):
             self.bump_stream(s, throttle=True)
             self.redraw_current_line()
             self.refresh_streams_pad()
-        except:
-            self.set_footer('This stream is already playing')
+        except Exception as e:
+            if type(e) == QueueDuplicate:
+                self.set_footer('This stream is already playing')
+            elif type(e) == OSError:
+                self.set_footer('/!\ Faulty command line: {}'.format(e.strerror))
+            else:
+                raise e
 
     def stop_stream(self):
         if self.no_streams:
