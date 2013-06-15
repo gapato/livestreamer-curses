@@ -532,6 +532,7 @@ class StreamList(object):
         if self.row == len(self.streams) and not self.no_streams:
             self.move(-1)
             self.streams_pad.chgat(curses.A_REVERSE)
+        self.redraw_current_line()
         self.show_streams()
 
     def reset_stream(self):
