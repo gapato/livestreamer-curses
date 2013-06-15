@@ -447,6 +447,28 @@ class StreamList(object):
         self.s.clrtoeol()
         return r
 
+    def prompt_confirmation(self, prompt='', def_yes=False):
+        self.s.move(self.max_y-1, 0)
+        self.s.clrtoeol()
+        if def_yes:
+            hint = '[y]/n'
+        else:
+            hint = 'y/[n]'
+        self.s.addstr('{} {} '.format(prompt, hint))
+        curses.curs_set(1)
+        curses.echo()
+        r = self.s.getch()
+        curses.noecho()
+        curses.curs_set(0)
+        self.s.move(self.max_y-1, 0)
+        self.s.clrtoeol()
+        if r == ord('y'):
+            return True
+        elif r == ord('n'):
+            return False
+        else:
+            return def_yes
+
     def sync_store(self):
         self.store['streams'] = self.streams
         self.store.sync()
@@ -501,6 +523,8 @@ class StreamList(object):
         if self.no_streams:
             return
         s = self.streams.pop(self.row)
+        if not self.prompt_confirmation('Delete stream {}?'.format(s['name'])):
+            return
         self.streams_pad.deleteln()
         self.sync_store()
         if len(self.streams) == 0:
@@ -514,6 +538,8 @@ class StreamList(object):
         if self.no_streams:
             return
         s = self.streams[self.row]
+        if not self.prompt_confirmation('Reset stream {}?'.format(s['name'])):
+            return
         s['seen']      = 0
         s['last_seen'] = 0
         self.redraw_current_line()
