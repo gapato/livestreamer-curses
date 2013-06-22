@@ -309,8 +309,6 @@ class StreamList(object):
                         self.delete_stream()
                     elif c == ord('h') or c == ord('?'):
                         self.show_help()
-                    else:
-                        self.set_footer(' Got unknown key : {}'.format(str(c)))
 
     def get_screen_size(self):
         """ Setup screen size and padding
@@ -385,7 +383,7 @@ class StreamList(object):
         self.s.move(1,0)
         self.s.clrtobot()
         self.set_header('Help'.center(self.pad_w))
-        self.set_footer(' Press any key to return to main menu')
+        self.set_footer(' ESC or \'q\' to return to main menu')
         self.s.refresh()
         self.current_pad = 'help'
         self.refresh_current_pad()
