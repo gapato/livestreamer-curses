@@ -30,7 +30,10 @@ import shelve
 import signal
 import shlex
 from subprocess import call, STDOUT, Popen, PIPE
-from select import select
+import select
+import struct
+from fcntl import ioctl
+import termios
 
 DEFAULT_RES='480p'
 
@@ -185,16 +188,52 @@ class StreamList(object):
         curses.curs_set(0)
 
         self.s = s
+
         self.get_screen_size()
+
+        self.pads = {}
+        self.offsets = {}
+
+        self.init_help()
+        self.init_streams_pad()
+        self.current_pad = 'streams'
 
         self.set_title('Livestreamer-curses v0.1')
         self.set_footer('Ready')
 
-        self.init_help()
-        self.init_streams_pad()
-
         self.got_g = False
         self.status = ''
+
+        signal.signal(28, self.resize)
+
+    def getheightwidth(self):
+        """ getwidth() -> (int, int)
+
+        Return the height and width of the console in characters
+        https://groups.google.com/forum/#!msg/comp.lang.python/CpUszNNXUQM/QADpl11Z-nAJ"""
+        try:
+            return int(os.environ["LINES"]), int(os.environ["COLUMNS"])
+        except KeyError:
+            height, width = struct.unpack(
+                "hhhh", ioctl(0, termios.TIOCGWINSZ ,"\000"*8))[0:2]
+            if not height: return 25, 80
+            return height, width
+
+    def resize(self, signum, obj):
+        self.s.clear()
+        self.s.refresh()
+        stream_cursor = self.pads['streams'].getyx()[0]
+        for pad in self.pads.values():
+            pad.clear()
+        self.pads = {}
+        self.get_screen_size()
+        self.s.resize(self.max_y+1, self.max_x+1)
+        self.set_title('Livestreamer-curses v0.1')
+        self.s.refresh()
+        self.init_help()
+        self.init_streams_pad()
+        self.move(stream_cursor, absolute=True, pad_name='streams')
+        self.show()
 
     def run(self):
         """ Main event loop """
@@ -211,7 +250,10 @@ class StreamList(object):
             # Wait on stdin or on the streams output
             souts = self.q.get_stdouts()
             souts.append(sys.stdin)
-            (r, w, x) = select(souts, [], [], 1)
+            try:
+                (r, w, x) = select.select(souts, [], [], 1)
+            except select.error:
+                continue
             for fd in r:
                 if fd != sys.stdin:
                     # Set the new status line only if non-empty
@@ -221,7 +263,7 @@ class StreamList(object):
                         self.redraw_status()
                 else:
                     # Main event loop
-                    c = self.streams_pad.getch()
+                    c = self.pads[self.current_pad].getch()
                     if c == curses.KEY_UP or c == ord('k') or c == 65:
                         self.move(-1)
                     elif c == curses.KEY_DOWN or c == ord('j') or c == 66:
@@ -234,6 +276,17 @@ class StreamList(object):
                         self.got_g = True
                     elif c == ord('G'):
                         self.move(len(self.streams)-1, absolute=True)
+                    elif c == ord('q'):
+                        if self.current_pad == 'streams':
+                            self.q.terminate()
+                            return
+                        else:
+                            self.show_streams()
+                    elif c == 27: # ESC
+                        if self.current_pad != 'streams':
+                            self.show_streams()
+                    if self.current_pad == 'help':
+                        continue
                     elif c == 10:
                         self.play_stream()
                     elif c == ord('s'):
@@ -256,15 +309,6 @@ class StreamList(object):
                         self.delete_stream()
                     elif c == ord('h') or c == ord('?'):
                         self.show_help()
-                        self.show_streams()
-                    elif c == ord('q'):
-                        self.q.terminate()
-                        return
-                    elif c == curses.KEY_RESIZE:
-                        self.get_screen_size()
-                        self.init_help()
-                        self.init_streams_pad()
-                        self.show_streams()
                     else:
                         self.set_footer(' Got unknown key : {}'.format(str(c)))
 
@@ -274,9 +318,10 @@ class StreamList(object):
         We have need 2 free lines at the top and 2 free lines at the bottom
 
         """
-        max_y, max_x = self.s.getmaxyx()
+        max_y, max_x = self.getheightwidth()
+        #raise ValueError('{} {}'.format(max_y, max_x))
         self.pad_x = 0
-        self.max_y, self.max_x = (max_y - 1, max_x -1)
+        self.max_y, self.max_x = (max_y-1, max_x-1)
         self.pad_w = max_x-1*self.pad_x
         self.pad_h = max_y-3
 
@@ -301,7 +346,8 @@ class StreamList(object):
         self.overwrite_line(msg, attr=curses.A_REVERSE)
 
     def init_help(self):
-        h = curses.newpad(self.pad_h, self.pad_w)
+        help_pad_length = 23    # there should be a neater way to do this
+        h = curses.newpad(help_pad_length, self.pad_w)
 
         h.addstr( 0, 0, 'STREAM MANAGEMENT', curses.A_BOLD)
         h.addstr( 2, 0, '  Enter : start stream')
@@ -324,7 +370,15 @@ class StreamList(object):
         h.addstr(21, 0, '  h/?   : show this help')
         h.addstr(22, 0, '  q     : quit')
 
-        self.help_pad = h
+        self.pads['help'] = h
+        self.offsets['help'] = 0
+
+    def show(self):
+        funcs = {
+            'streams' : self.show_streams,
+            'help'    : self.show_help
+        }
+        funcs[self.current_pad]()
 
     def show_help(self):
         """ Redraw Help screen and wait for any input to leave """
@@ -333,22 +387,21 @@ class StreamList(object):
         self.set_header('Help'.center(self.pad_w))
         self.set_footer(' Press any key to return to main menu')
         self.s.refresh()
-        self.help_pad.refresh(0, 0, 2, 0, self.pad_h, self.pad_h)
-        self.help_pad.getch()
+        self.current_pad = 'help'
+        self.refresh_current_pad()
 
-    def init_streams_pad(self):
+    def init_streams_pad(self, start_row=0):
         """ Create a curses pad and populate it with a line by stream """
         y = 0
-        p = curses.newpad(max(1,len(self.streams)), self.pad_w)
+        pad = curses.newpad(max(1,len(self.streams)), self.pad_w)
         for s in self.streams:
-            p.addstr(y, 0, self.format_stream_line(s))
+            pad.addstr(y, 0, self.format_stream_line(s))
             y+=1
-        self.row = 0
-        self.top_row = 0
-        p.move(self.row, 0)
+        self.offsets['streams'] = 0
+        pad.move(start_row, 0)
         if not self.no_streams:
-            p.chgat(curses.A_REVERSE)
-        self.streams_pad = p
+            pad.chgat(curses.A_REVERSE)
+        self.pads['streams'] = pad
 
     def show_streams(self):
         self.s.move(1,0)
@@ -367,44 +420,67 @@ class StreamList(object):
             self.s.addstr(8, 5, 'Hit \'?\' for help.')
             self.set_footer(' Ready')
         self.s.refresh()
-        self.refresh_streams_pad()
+        self.current_pad = 'streams'
+        self.refresh_current_pad()
 
-    def refresh_streams_pad(self):
-        self.streams_pad.refresh(self.top_row, 0, 2, self.pad_x, self.pad_h, self.pad_w)
+    def refresh_current_pad(self):
+        self.pads[self.current_pad].refresh(self.offsets[self.current_pad], 0, 2, self.pad_x, self.pad_h, self.pad_w)
 
-    def move(self, direction, absolute=False):
-        """ Scroll the stream pad
+    def move(self, direction, absolute=False, pad_name=None):
+        """ Scroll the current pad
 
-        direction : (int)  if absolute is True, go to position direction
-                           otherwise move by one in the given direction
-                           -1 is up, 1 is down
+        direction : (int)  move by one in the given direction
+                           -1 is up, 1 is down. If absolute is True,
+                           go to position direction.
         absolute  : (bool)
         """
-        if self.no_streams:
+
+        cursor_line = [ 'streams' ]
+        scroll_only = [ 'help' ]
+
+        if not pad_name:
+            pad_name = self.current_pad
+        pad = self.pads[pad_name]
+        if pad_name == 'streams' and self.no_streams:
             return
-        self.streams_pad.move(self.row, 0)
-        self.streams_pad.chgat(curses.A_NORMAL)
-        if absolute and direction >= 0 and direction < len(self.streams):
-            if direction < self.top_row:
-                self.top_row = direction
-            elif direction > self.top_row + self.pad_h - 2:
-                self.top_row = direction - self.pad_h + 2
-            self.row = direction
+        (row, col) = pad.getyx()
+        new_row    = row
+        offset = self.offsets[pad_name]
+        new_offset = offset
+        if pad_name in scroll_only:
+            if absolute:
+                if direction > 0:
+                    new_offset = pad.getmaxyx()[0] - self.pad_h + 1
+                else:
+                    new_offset = 0
+            else:
+                if direction > 0:
+                    new_offset = min(pad.getmaxyx()[0] - self.pad_h + 1, offset + self.pad_h)
+                elif offset > 0:
+                    new_offset = max(0, offset - self.pad_h)
         else:
-            if direction == -1 and self.row > 0:
-                if self.row == self.top_row:
-                    self.top_row -= 1
-                self.row -= 1
-            elif direction == 1 and self.row < len(self.streams)-1:
-                if self.row == self.top_row + self.pad_h - 2:
-                    self.top_row += 1
-                self.row += 1
-        self.streams_pad.move(self.row, 0)
-        self.streams_pad.chgat(curses.A_REVERSE)
-        self.refresh_streams_pad()
-        s = self.streams[self.row]
-        self.redraw_stream_footer()
-        self.redraw_status()
+            if absolute and direction >= 0 and direction < pad.getmaxyx()[0]:
+                if direction < offset:
+                    new_offset = direction
+                elif direction > offset + self.pad_h - 2:
+                    new_offset = direction - self.pad_h + 2
+                new_row = direction
+            else:
+                if direction == -1 and row > 0:
+                    if row == offset:
+                        new_offset -= 1
+                    new_row = row-1
+                elif direction == 1 and row < pad.getmaxyx()[0]-1:
+                    if row == offset + self.pad_h - 2:
+                        new_offset += 1
+                    new_row = row+1
+        if pad_name in cursor_line:
+            pad.chgat(curses.A_NORMAL)
+        self.offsets[pad_name] = new_offset
+        pad.move(new_row, 0)
+        if pad_name in cursor_line:
+            pad.chgat(curses.A_REVERSE)
+        self.refresh_current_pad()
 
     def format_stream_line(self, stream):
         id = '{} '.format(stream['id']).rjust(ID_FIELD_WIDTH)
@@ -422,12 +498,14 @@ class StreamList(object):
         """ Redraw the highlighted line """
         if self.no_streams:
             return
-        s = self.streams[self.row]
-        self.streams_pad.move(self.row, 0)
-        self.streams_pad.clrtoeol()
-        self.streams_pad.addstr(self.row, 0, self.format_stream_line(s), curses.A_REVERSE)
-        self.streams_pad.chgat(curses.A_REVERSE)
-        self.refresh_streams_pad()
+        row = self.pads[self.current_pad].getyx()[0]
+        s = self.streams[row]
+        pad = self.pads['streams']
+        pad.move(row, 0)
+        pad.clrtoeol()
+        pad.addstr(row, 0, self.format_stream_line(s), curses.A_REVERSE)
+        pad.chgat(curses.A_REVERSE)
+        self.refresh_current_pad()
 
     def redraw_status(self):
         self.s.move(self.max_y, 0)
@@ -435,8 +513,9 @@ class StreamList(object):
 
     def redraw_stream_footer(self):
         if not self.no_streams:
-            s = self.streams[self.row]
-            self.set_footer('{}/{} {} {}'.format(self.row+1, len(self.streams), s['url'], s['res']))
+            row = self.pads[self.current_pad].getyx()[0]
+            s = self.streams[row]
+            self.set_footer('{}/{} {} {}'.format(row+1, len(self.streams), s['url'], s['res']))
             self.s.refresh
 
     def check_stopped_streams(self):
@@ -446,12 +525,12 @@ class StreamList(object):
                 s = self.streams[i]
                 if f == s['id']:
                     self.set_footer('Stream {} has stopped'.format(s['name']))
-                    if i == self.row:
+                    if i == self.pads[self.current_pad].getyx()[0]:
                         attr = curses.A_REVERSE
                     else:
                         attr = curses.A_NORMAL
-                    self.streams_pad.addch(i, PLAYING_FIELD_OFFSET, ' ', attr)
-                    self.refresh_streams_pad()
+                    self.pads['streams'].addch(i, PLAYING_FIELD_OFFSET, ' ', attr)
+                    self.refresh_current_pad()
 
     def prompt_input(self, prompt=''):
         self.s.move(self.max_y-1, 0)
@@ -541,23 +620,25 @@ class StreamList(object):
     def delete_stream(self):
         if self.no_streams:
             return
-        s = self.streams.pop(self.row)
+        pad = self.pads[self.current_pad]
+        s = self.streams.pop(pad.getyx()[0])
         if not self.prompt_confirmation('Delete stream {}?'.format(s['name'])):
             return
-        self.streams_pad.deleteln()
+        pad.deleteln()
         self.sync_store()
         if len(self.streams) == 0:
             self.no_streams = True
-        if self.row == len(self.streams) and not self.no_streams:
+        if pad.getyx()[0] == len(self.streams) and not self.no_streams:
             self.move(-1)
-            self.streams_pad.chgat(curses.A_REVERSE)
+            pad.chgat(curses.A_REVERSE)
         self.redraw_current_line()
         self.show_streams()
 
     def reset_stream(self):
         if self.no_streams:
             return
-        s = self.streams[self.row]
+        pad = self.pads[self.current_pad]
+        s = self.streams[pad.getyx()[0]]
         if not self.prompt_confirmation('Reset stream {}?'.format(s['name'])):
             return
         s['seen']      = 0
@@ -573,7 +654,8 @@ class StreamList(object):
                 }
         if self.no_streams:
             return
-        s = self.streams[self.row]
+        pad = self.pads[self.current_pad]
+        s = self.streams[pad.getyx()[0]]
         new_val = self.prompt_input('{} (empty to cancel): '.format(prompt_info[attr]))
         if new_val != '':
             s[attr] = new_val
@@ -607,12 +689,13 @@ class StreamList(object):
     def play_stream(self):
         if self.no_streams:
             return
-        s = self.streams[self.row]
+        pad = self.pads[self.current_pad]
+        s = self.streams[pad.getyx()[0]]
         try:
             self.q.put(s['id'], s['url'], s['res'])
             self.bump_stream(s, throttle=True)
             self.redraw_current_line()
-            self.refresh_streams_pad()
+            self.refresh_current_pad()
         except Exception as e:
             if type(e) == QueueDuplicate:
                 self.set_footer('This stream is already playing')
@@ -624,7 +707,8 @@ class StreamList(object):
     def stop_stream(self):
         if self.no_streams:
             return
-        s = self.streams[self.row]
+        pad = self.streams[self.pads[self.current_pad]]
+        s = self.streams[pad.getyx()[0]]
         p = self.q.terminate_process(s['id'])
         if p:
             self.redraw_current_line()
