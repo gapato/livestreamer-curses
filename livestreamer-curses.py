@@ -220,6 +220,7 @@ class StreamList(object):
             return height, width
 
     def resize(self, signum, obj):
+        """ handler for SIGWINCH """
         self.s.clear()
         self.s.refresh()
         stream_cursor = self.pads['streams'].getyx()[0]
@@ -430,10 +431,16 @@ class StreamList(object):
         direction : (int)  move by one in the given direction
                            -1 is up, 1 is down. If absolute is True,
                            go to position direction.
+                           Behaviour is affected by cursor_line and scroll_only below
         absolute  : (bool)
         """
 
+        # pad in this lists have the current line highlighted
         cursor_line = [ 'streams' ]
+
+        # pads in this list will be moved screen-wise as opposed to line-wise
+        # if absolute is set, will go all the way top or all the way down depending
+        # on direction
         scroll_only = [ 'help' ]
 
         if not pad_name:
