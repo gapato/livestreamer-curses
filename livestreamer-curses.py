@@ -712,7 +712,7 @@ class StreamList(object):
     def stop_stream(self):
         if self.no_streams:
             return
-        pad = self.streams[self.pads[self.current_pad]]
+        pad = self.pads[self.current_pad]
         s = self.streams[pad.getyx()[0]]
         p = self.q.terminate_process(s['id'])
         if p:
