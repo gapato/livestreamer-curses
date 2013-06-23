@@ -510,6 +510,7 @@ class StreamList(object):
         pad.clrtoeol()
         pad.addstr(row, 0, self.format_stream_line(s), curses.A_REVERSE)
         pad.chgat(curses.A_REVERSE)
+        pad.move(row, 0)
         self.refresh_current_pad()
 
     def redraw_status(self):
