@@ -405,6 +405,7 @@ class StreamList(object):
     def show_streams(self):
         self.s.move(1,0)
         self.s.clrtobot()
+        self.current_pad = 'streams'
         if not self.no_streams:
             id = 'ID'.center(ID_FIELD_WIDTH)
             name = 'Name'.center(NAME_FIELD_WIDTH)
@@ -419,7 +420,6 @@ class StreamList(object):
             self.s.addstr(8, 5, 'Hit \'?\' for help.')
             self.set_footer(' Ready')
         self.s.refresh()
-        self.current_pad = 'streams'
         self.refresh_current_pad()
 
     def refresh_current_pad(self):
