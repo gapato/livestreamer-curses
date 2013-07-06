@@ -423,7 +423,8 @@ class StreamList(object):
         self.refresh_current_pad()
 
     def refresh_current_pad(self):
-        self.pads[self.current_pad].refresh(self.offsets[self.current_pad], 0, 2, self.pad_x, self.pad_h, self.pad_w)
+        pad = self.pads[self.current_pad]
+        pad.refresh(self.offsets[self.current_pad], 0, 2, self.pad_x, self.pad_h, self.pad_w)
 
     def move(self, direction, absolute=False, pad_name=None):
         """ Scroll the current pad
@@ -480,11 +481,14 @@ class StreamList(object):
                         new_offset += 1
                     new_row = row+1
         if pad_name in cursor_line:
+            pad.move(row, 0)
             pad.chgat(curses.A_NORMAL)
         self.offsets[pad_name] = new_offset
         pad.move(new_row, 0)
         if pad_name in cursor_line:
             pad.chgat(curses.A_REVERSE)
+        if pad_name == 'streams':
+            self.redraw_stream_footer()
         self.refresh_current_pad()
 
     def format_stream_line(self, stream):
