@@ -43,6 +43,10 @@ RES_FIELD_WIDTH  = 12
 VIEWS_FIELD_WIDTH = 7
 PLAYING_FIELD_OFFSET = ID_FIELD_WIDTH + NAME_FIELD_WIDTH + RES_FIELD_WIDTH + VIEWS_FIELD_WIDTH + 6
 
+PROG_STRING    = 'livestreamer-curses'
+VERSION_STRING = '0.2'
+TITLE_STRING   = '{0} v{1}'.format(PROG_STRING, VERSION_STRING)
+
 class QueueFull(Exception): pass
 class QueueDuplicate(Exception): pass
 
@@ -200,7 +204,7 @@ class StreamList(object):
         self.init_streams_pad()
         self.current_pad = 'streams'
 
-        self.set_title('Livestreamer-curses v0.1')
+        self.set_title(TITLE_STRING)
         self.set_footer('Ready')
 
         self.got_g = False
@@ -231,7 +235,7 @@ class StreamList(object):
         self.pads = {}
         self.get_screen_size()
         self.s.resize(self.max_y+1, self.max_x+1)
-        self.set_title('Livestreamer-curses v0.1')
+        self.set_title(TITLE_STRING)
         self.s.refresh()
         self.init_help()
         self.init_streams_pad()
