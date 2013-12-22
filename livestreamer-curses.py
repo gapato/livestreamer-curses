@@ -161,7 +161,8 @@ class StreamList(object):
                 self.max_id = max(self.max_id, s['id'])
         else:
             self.streams = []
-        self.filtered_streams = self.streams
+        self.filtered_streams = list(self.streams)
+        self.filter = ''
 
         if not f.has_key('cmd'):
             f['cmd'] = ['livestreamer']
@@ -493,7 +494,7 @@ class StreamList(object):
                     if row == offset:
                         new_offset -= 1
                     new_row = row-1
-                elif direction == 1 and row < pad.getmaxyx()[0]-1:
+                elif direction == 1 and row < len(self.filtered_streams)-1:
                     if row == offset + self.pad_h - 2:
                         new_offset += 1
                     new_row = row+1
@@ -682,8 +683,8 @@ class StreamList(object):
         s = self.filtered_streams[pad.getyx()[0]]
         if not self.prompt_confirmation('Delete stream {}?'.format(s['name'])):
             return
-        self.filtered_streams.popitem(s)
-        self.streams.popitem(s)
+        self.filtered_streams.remove(s)
+        self.streams.remove(s)
         pad.deleteln()
         self.sync_store()
         if len(self.streams) == 0:
