@@ -15,6 +15,11 @@ hit `L` and type `livestreamer -p /path/to/your/player`.
 **Note:** livestreamer (or whatever program you set) will be called via python's `subprocess.Popen` without shell support.
 That means that you cannot use redirections (`>`) or pipes (`|`).
 
+### Changelog
+
+#### v0.2 (22 Dec. 2013)
+* Feature: filter streams with `f` key, clear it with `F`
+
 ### Dependencies
 
 * [Livestreamer](https://github.com/chrippa/livestreamer)
