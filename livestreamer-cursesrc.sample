@@ -1,0 +1,25 @@
+# Sample rc file for livestreamer-curses
+
+# Default resolution for new streams.
+# Can be a simple string
+DEFAULT_RESOLUTION = 'Medium'
+
+# A dict, the resolution will be the value of the key that match the URL
+# If none match, '480p' (hardcoded) is used
+DEFAULT_RESOLUTION = {
+    'twitch.tv': 'Medium',
+    'foo.eu'   : '480p'
+}
+
+# Or a function which takes the URL and return the corresponding resolution
+def DEFAULT_RESOLUTION(url):
+    if 'twitch' in url:
+        return 'Medium'
+    else:
+        return '480p'
+
+# List of different commands to call livestreamer. Cycle with L.
+LIVESTREAMER_COMMANDS = [
+    "livestreamer -p 'vlc --qt-minimal-view'",
+    "livestreamer -p 'vlc --qt-minimal-view' --rtmpdump-proxy localhost:1234"
+]

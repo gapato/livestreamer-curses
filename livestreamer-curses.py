@@ -34,8 +34,7 @@ import select
 import struct
 from fcntl import ioctl
 import termios
-
-DEFAULT_RES='480p'
+import imp
 
 ID_FIELD_WIDTH   = 6
 NAME_FIELD_WIDTH = 22
@@ -46,6 +45,8 @@ PLAYING_FIELD_OFFSET = ID_FIELD_WIDTH + NAME_FIELD_WIDTH + RES_FIELD_WIDTH + VIE
 PROG_STRING    = 'livestreamer-curses'
 VERSION_STRING = '0.2'
 TITLE_STRING   = '{0} v{1}'.format(PROG_STRING, VERSION_STRING)
+
+DEFAULT_RESOLUTION_HARD = '480p'
 
 class QueueFull(Exception): pass
 class QueueDuplicate(Exception): pass
@@ -164,9 +165,17 @@ class StreamList(object):
         self.filtered_streams = list(self.streams)
         self.filter = ''
 
-        if not f.has_key('cmd'):
-            f['cmd'] = ['livestreamer']
-        self.cmd = f['cmd']
+        if 'LIVESTREAMER_COMMANDS' in dir(rc):
+            self.cmd_list = map(shlex.split, rc.LIVESTREAMER_COMMANDS)
+        else:
+            self.cmd_list = [['livestreamer']]
+        self.cmd_index = 0
+        self.cmd = self.cmd_list[self.cmd_index]
+
+        if 'DEFAULT_RESOLUTION' in dir(rc):
+            self.default_res = rc.DEFAULT_RESOLUTION
+        else:
+            self.default_res = DEFAULT_RESOLUTION_HARD
 
         self.store = f
         self.store.sync()
@@ -316,7 +325,7 @@ class StreamList(object):
                     elif c == ord('l'):
                         self.show_commandline()
                     elif c == ord('L'):
-                        self.edit_commandline()
+                        self.shift_commandline()
                     elif c == ord('a'):
                         self.prompt_new_stream()
                     elif c == ord('d'):
@@ -372,7 +381,7 @@ class StreamList(object):
         h.addstr( 9, 0, '  d     : delete stream')
 
         h.addstr(11, 0, '  l     : show command line')
-        h.addstr(12, 0, '  L     : edit command line')
+        h.addstr(12, 0, '  L     : cycle command line')
 
         h.addstr(15, 0, 'NAVIGATION', curses.A_BOLD)
         h.addstr(17, 0, '  j/up  : up one line')
@@ -643,7 +652,7 @@ class StreamList(object):
         self.redraw_stream_footer()
         self.redraw_status()
 
-    def add_stream(self, name, url, res=DEFAULT_RES, bump=False):
+    def add_stream(self, name, url, res=None, bump=False):
         ex_stream = self.find_stream(url, key='url')
         if ex_stream:
             if bump:
@@ -659,12 +668,28 @@ class StreamList(object):
             else:
                 self.max_id += 1
                 id = self.max_id
+
+            s_res = res or self.default_res
+
+            if type(s_res) == str:
+                actual_res = s_res
+            elif type(s_res) == dict:
+                actual_res = DEFAULT_RESOLUTION_HARD
+                for (k,v) in s_res.iteritems():
+                    if k in url:
+                        actual_res = v
+                        break
+            elif callable(s_res):
+                actual_res = s_res(url) or DEFAULT_RESOLUTION_HARD
+            else:
+                actual_res = DEFAULT_RESOLUTION_HARD
+
             new_stream = {
                     'id'        : id,
                     'name'      : name,
                     'seen'      : seen,
                     'last_seen' : last_seen,
-                    'res'       : res,
+                    'res'       : actual_res,
                     'url'       : url
                 }
             self.streams.append(new_stream)
@@ -727,19 +752,14 @@ class StreamList(object):
         self.redraw_stream_footer()
 
     def show_commandline(self):
-        self.set_footer(' '.join(self.cmd))
+        self.set_footer('{0}/{1} {2}'.format(self.cmd_index+1, len(self.cmd_list), ' '.join(self.cmd)))
 
-    def edit_commandline(self):
-        new_cmd = self.prompt_input('Command line (empty to cancel): ')
-        if new_cmd != '':
-            try:
-                cmd = shlex.split(new_cmd)
-            except:
-                return
-            self.cmd = cmd
-            self.q.call = StreamPlayer(self.cmd).play
-        self.redraw_status()
-        self.redraw_stream_footer()
+    def shift_commandline(self):
+        self.cmd_index += 1
+        if self.cmd_index == len(self.cmd_list):
+            self.cmd_index = 0
+        self.cmd = self.cmd_list[self.cmd_index]
+        self.show_commandline()
 
     def prompt_new_stream(self):
         url = self.prompt_input('New stream URL (empty to cancel): ')
@@ -778,5 +798,13 @@ class StreamList(object):
             self.redraw_stream_footer()
             self.redraw_status()
 
-l = StreamList('{}/.livestreamer-curses.db'.format(os.environ['HOME']))
+rc = imp.new_module('rc')
+rc_filename = u'{}/.livestreamer-cursesrc'.format(os.environ['HOME'])
+if os.path.exists(rc_filename):
+    try:
+        rc = imp.load_source('rc', rc_filename)
+    except Exception as e:
+        sys.stderr.write('Failed to read rc file, error was:\n{0}\n'.format(str(e)))
+        sys.exit(1)
+l = StreamList(u'{}/.livestreamer-curses.db'.format(os.environ['HOME']))
 curses.wrapper(l)
