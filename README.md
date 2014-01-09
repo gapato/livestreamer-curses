@@ -10,17 +10,20 @@ With it you can manage a list of your favorite streams and play them (several at
 Clone this repo and run `python livestreamer-curses.py`. This will initialize the database in `$HOME/.livestreamer-curses.db`
 and ask you to add streams.
 
-Hit `l` to show the current livestreamer command line options, _i.e._ how will livestreamer by called. To edit it, hit `L`.
-The stream URL and resolution will be appended automatically. For example, to use a different player (on a Mac, for example, I guess),
-hit `L` and type `livestreamer -p /path/to/your/player`.
+To change the way to call `livestreamer`, use the configuration file (location hardcoded as `$HOME/.livestreamer-cursesrc` for now).
+See sample file for usage.
 
-**Note:** livestreamer (or whatever program you set) will be called via python's `subprocess.Popen` without shell support.
-That means that you cannot use redirections (`>`) or pipes (`|`).
+### Planned features
+* Custom locations for configuration file, streams database.
+* ...
 
 ### Changelog
 
-#### v0.2 (22 Dec. 2013)
-* Feature: filter streams with `f` key, clear it with `F`
+* v0.3 (09 Jan. 2014)
+    * Feature: .livestreamer-cursesrc file which comes with 2 configuration options, see livestreamer-cursesrc.sample
+
+* v0.2 (22 Dec. 2013)
+    * Feature: filter streams with `f` key, clear it with `F`
 
 ### Dependencies
 
