@@ -19,6 +19,9 @@ See sample file for usage.
 
 ### Changelog
 
+* v0.31 (09 Jan. 2014)
+    * Buxgix: Streams are now properly sorted when filtering
+
 * v0.3 (09 Jan. 2014)
     * Feature: .livestreamer-cursesrc file which comes with 2 configuration options, see livestreamer-cursesrc.sample
 
