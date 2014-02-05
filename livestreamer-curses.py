@@ -644,7 +644,7 @@ class StreamList(object):
         for s in self.streams:
             if self.filter in s['name'].lower() or self.filter in s['url'].lower():
                 self.filtered_streams.append(s)
-        self.filtered_streams.sort(key=lambda s:s['seen'])
+        self.filtered_streams.sort(key=lambda s:s['seen'], reverse=True)
         self.no_stream_shown = len(self.filtered_streams) == 0
         self.status = 'New filter: {0} ({1} matches)'.format(self.filter, len(self.filtered_streams))
         self.init_streams_pad()
