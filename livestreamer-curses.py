@@ -137,13 +137,10 @@ class ProcessList(object):
 class StreamPlayer(object):
     """ Provides a callable to play a given url """
 
-    def __init__(self, cmd=['livestreamer']):
-        self.cmd = cmd
-
-    def play(self, url, res):
-        cmd = list(self.cmd)
-        cmd.extend([url, res])
-        return Popen(cmd, stdout=PIPE, stderr=STDOUT)
+    def play(self, url, res, cmd=['livestreamer']):
+        full_cmd = list(cmd)
+        full_cmd.extend([url, res])
+        return Popen(full_cmd, stdout=PIPE, stderr=STDOUT)
 
 class StreamList(object):
 
@@ -182,7 +179,7 @@ class StreamList(object):
 
         self.no_streams = self.streams == []
         self.no_stream_shown = self.no_streams
-        self.q = ProcessList(StreamPlayer(self.cmd).play)
+        self.q = ProcessList(StreamPlayer().play)
 
     def __del__(self):
         """ Stop playing streams and sync storage """
@@ -775,7 +772,7 @@ class StreamList(object):
         pad = self.pads[self.current_pad]
         s = self.filtered_streams[pad.getyx()[0]]
         try:
-            self.q.put(s['id'], s['url'], s['res'])
+            self.q.put(s['id'], s['url'], s['res'], self.cmd)
             self.bump_stream(s, throttle=True)
             self.redraw_current_line()
             self.refresh_current_pad()
