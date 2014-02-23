@@ -19,6 +19,9 @@ See sample file for usage.
 
 ### Changelog
 
+* v0.32 (23 Feb. 2014)
+    * Buxgix: Actually use selected command line (how did I miss this?!)
+
 * v0.31 (09 Jan. 2014)
     * Buxgix: Streams are now properly sorted when filtering
 
