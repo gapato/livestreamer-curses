@@ -7,15 +7,10 @@ With it you can manage a list of your favorite streams and play them (several at
 
 ### Usage
 
-Clone this repo and run `python livestreamer-curses.py`. This will initialize the database in `$HOME/.livestreamer-curses.db`
-and ask you to add streams.
+Install using `pip install livestreamer-curses` which will provide the `livestreamer-curses` command
 
-To change the way to call `livestreamer`, use the configuration file (location hardcoded as `$HOME/.livestreamer-cursesrc` for now).
+To change the way to call `livestreamer`, use the configuration file (default: `~/.livestreamer-cursesrc`).
 See sample file for usage.
-
-### Planned features
-* Custom locations for configuration file, streams database.
-* ...
 
 ### Changelog
 

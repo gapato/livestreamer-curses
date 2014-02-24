@@ -11,9 +11,7 @@ import livestreamer_curses.main as lsc
 
 setup(name="livestreamer-curses",
       version=lsc.VERSION_STRING,
-      description="Livestreamer is CLI program that extracts streams from "
-                  "various services and pipes them into a video player of "
-                  "choice.",
+      description="Livestreamer-curses is a curses frontend to livestreamer",
       url="http://github.com/gapato/livestreamer-curses",
       author="Gaspard Jankowiak",
       author_email="gaspard@oknaj.eu",
