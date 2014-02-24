@@ -37,6 +37,8 @@ from fcntl import ioctl
 import termios
 import imp
 
+rc = imp.new_module('rc')
+
 ID_FIELD_WIDTH   = 6
 NAME_FIELD_WIDTH = 22
 RES_FIELD_WIDTH  = 12
@@ -796,20 +798,23 @@ class StreamList(object):
             self.redraw_stream_footer()
             self.redraw_status()
 
-parser = argparse.ArgumentParser(description='Livestreamer curses frontend.')
-parser.add_argument('-d', type=unicode, metavar='database', help='default: ~/.livestreamer-curses.db',
-                    default=os.path.join(os.environ['HOME'], u'.livestreamer-curses.db'))
-parser.add_argument('-f', type=unicode, metavar='configfile', help='default: ~/.livestreamer-cursesrc',
-                    default=os.path.join(os.environ['HOME'], u'.livestreamer-cursesrc'))
-args = parser.parse_args()
+def main():
+    parser = argparse.ArgumentParser(description='Livestreamer curses frontend.')
+    parser.add_argument('-d', type=unicode, metavar='database', help='default: ~/.livestreamer-curses.db',
+                        default=os.path.join(os.environ['HOME'], u'.livestreamer-curses.db'))
+    parser.add_argument('-f', type=unicode, metavar='configfile', help='default: ~/.livestreamer-cursesrc',
+                        default=os.path.join(os.environ['HOME'], u'.livestreamer-cursesrc'))
+    args = parser.parse_args()
 
-rc = imp.new_module('rc')
-rc_filename = args.f
-if os.path.exists(rc_filename):
-    try:
-        rc = imp.load_source('rc', rc_filename)
-    except Exception as e:
-        sys.stderr.write('Failed to read rc file, error was:\n{0}\n'.format(str(e)))
-        sys.exit(1)
-l = StreamList(args.d)
-curses.wrapper(l)
+    rc_filename = args.f
+    if os.path.exists(rc_filename):
+        try:
+            rc = imp.load_source('rc', rc_filename)
+        except Exception as e:
+            sys.stderr.write('Failed to read rc file, error was:\n{0}\n'.format(str(e)))
+            sys.exit(1)
+    l = StreamList(args.d)
+    curses.wrapper(l)
+
+if __name__ == '__main__':
+    main()
