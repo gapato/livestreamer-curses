@@ -19,6 +19,12 @@ See sample file for usage.
 
 ### Changelog
 
+* v1.0.0 (24 Feb. 2014)
+    * *Backward incompatible changes*: change project structure to accomodate
+      for distutils
+    * Feature: Added `-d` and  `-f` options for custom database and config
+      file locations, respectively.
+
 * v0.32 (23 Feb. 2014)
     * Buxgix: Actually use selected command line (how did I miss this?!)
 
