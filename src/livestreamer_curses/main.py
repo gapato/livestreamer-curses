@@ -37,8 +37,6 @@ from fcntl import ioctl
 import termios
 import imp
 
-rc = imp.new_module('rc')
-
 ID_FIELD_WIDTH   = 6
 NAME_FIELD_WIDTH = 22
 RES_FIELD_WIDTH  = 12
@@ -147,7 +145,7 @@ class StreamPlayer(object):
 
 class StreamList(object):
 
-    def __init__(self, filename):
+    def __init__(self, filename, rc_module):
         """ Init and try to load a stream list, nothing about curses yet """
 
         # Open the storage (create it if necessary
@@ -164,16 +162,17 @@ class StreamList(object):
             self.streams = []
         self.filtered_streams = list(self.streams)
         self.filter = ''
+        self.rc_module = rc_module
 
-        if 'LIVESTREAMER_COMMANDS' in dir(rc):
-            self.cmd_list = map(shlex.split, rc.LIVESTREAMER_COMMANDS)
+        if 'LIVESTREAMER_COMMANDS' in dir(self.rc_module):
+            self.cmd_list = map(shlex.split, self.rc_module.LIVESTREAMER_COMMANDS)
         else:
             self.cmd_list = [['livestreamer']]
         self.cmd_index = 0
         self.cmd = self.cmd_list[self.cmd_index]
 
-        if 'DEFAULT_RESOLUTION' in dir(rc):
-            self.default_res = rc.DEFAULT_RESOLUTION
+        if 'DEFAULT_RESOLUTION' in dir(self.rc_module):
+            self.default_res = self.rc_module.DEFAULT_RESOLUTION
         else:
             self.default_res = DEFAULT_RESOLUTION_HARD
 
@@ -809,11 +808,13 @@ def main():
     rc_filename = args.f
     if os.path.exists(rc_filename):
         try:
-            rc = imp.load_source('rc', rc_filename)
+            rc_module = imp.load_source('rc', rc_filename)
         except Exception as e:
             sys.stderr.write('Failed to read rc file, error was:\n{0}\n'.format(str(e)))
             sys.exit(1)
-    l = StreamList(args.d)
+    else:
+        rc_module = imp.new_module('rc')
+    l = StreamList(args.d, rc_module)
     curses.wrapper(l)
 
 if __name__ == '__main__':
