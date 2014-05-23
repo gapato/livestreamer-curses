@@ -18,6 +18,7 @@ setup(name="livestreamer-curses",
       license="MIT",
       packages = [ "livestreamer_curses" ],
       package_dir={ "": "src" },
+      install_requires=["livestreamer"],
       entry_points={
           "console_scripts": ["livestreamer-curses=livestreamer_curses.main:main"]
       },
