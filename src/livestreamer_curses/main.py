@@ -36,6 +36,9 @@ import struct
 from fcntl import ioctl
 import termios
 import imp
+from livestreamer import Livestreamer
+from multiprocessing import Pool
+
 
 ID_FIELD_WIDTH   = 6
 NAME_FIELD_WIDTH = 22
@@ -48,6 +51,27 @@ VERSION_STRING = '1.0.1'
 TITLE_STRING   = '{0} v{1}'.format(PROG_STRING, VERSION_STRING)
 
 DEFAULT_RESOLUTION_HARD = '480p'
+
+INDICATORS = [
+        '  x  ', # offline
+        ' >>> ', # streaming
+        '  ?  ', # unknown
+        '  !  '  # error
+]
+
+CHECK_ONLINE_THREADS = 10
+
+## UGLY, I don't know how to do that better ##
+LIVESTREAMER_INSTANCE = Livestreamer()
+def _check_stream(url):
+    try:
+        plugin = LIVESTREAMER_INSTANCE.resolve_url(url)
+        avail_streams = plugin.get_streams()
+        if avail_streams:
+            return 1
+        return 0
+    except:
+        return 3
 
 class QueueFull(Exception): pass
 class QueueDuplicate(Exception): pass
@@ -158,10 +182,12 @@ class StreamList(object):
             for s in self.streams:
                 # Max id, needed when adding a new stream
                 self.max_id = max(self.max_id, s['id'])
+                s['online'] = 2
         else:
             self.streams = []
         self.filtered_streams = list(self.streams)
         self.filter = ''
+        self.show_offline_streams = False
         self.rc_module = rc_module
 
         if 'LIVESTREAMER_COMMANDS' in dir(self.rc_module):
@@ -329,6 +355,11 @@ class StreamList(object):
                         self.prompt_new_stream()
                     elif c == ord('d'):
                         self.delete_stream()
+                    elif c == ord('o'):
+                        self.show_offline_streams ^= True
+                        self.refilter_streams()
+                    elif c == ord('O'):
+                        self.check_online_streams()
                     elif c == ord('h') or c == ord('?'):
                         self.show_help()
 
@@ -366,7 +397,7 @@ class StreamList(object):
         self.overwrite_line(msg, attr=curses.A_REVERSE)
 
     def init_help(self):
-        help_pad_length = 25    # there should be a neater way to do this
+        help_pad_length = 27    # there should be a neater way to do this
         h = curses.newpad(help_pad_length, self.pad_w)
 
         h.addstr( 0, 0, 'STREAM MANAGEMENT', curses.A_BOLD)
@@ -387,10 +418,12 @@ class StreamList(object):
         h.addstr(18, 0, '  k/down: down one line')
         h.addstr(19, 0, '  f     : filter streams')
         h.addstr(20, 0, '  F     : clear filter')
-        h.addstr(21, 0, '  gg    : go to top')
-        h.addstr(22, 0, '  G     : go to bottom')
-        h.addstr(23, 0, '  h/?   : show this help')
-        h.addstr(24, 0, '  q     : quit')
+        h.addstr(21, 0, '  o     : toggle offline streams')
+        h.addstr(22, 0, '  O     : check for online streams')
+        h.addstr(23, 0, '  gg    : go to top')
+        h.addstr(24, 0, '  G     : go to bottom')
+        h.addstr(25, 0, '  h/?   : show this help')
+        h.addstr(26, 0, '  q     : quit')
 
         self.pads['help'] = h
         self.offsets['help'] = 0
@@ -525,9 +558,9 @@ class StreamList(object):
         views  = '{} '.format(stream['seen']).rjust(VIEWS_FIELD_WIDTH)
         p = self.q.get_process(stream['id']) != None
         if p:
-            indicator = '>'
+            indicator = '[>>>]'
         else:
-            indicator = ' '
+            indicator = INDICATORS[stream['online']]
         return '{}|{}|{}|{}|  {}'.format(id, name, res, views, indicator)
 
     def redraw_current_line(self):
@@ -567,10 +600,27 @@ class StreamList(object):
                             attr = curses.A_REVERSE
                         else:
                             attr = curses.A_NORMAL
-                        self.pads['streams'].addch(i, PLAYING_FIELD_OFFSET, ' ', attr)
+                        self.pads['streams'].addstr(i, PLAYING_FIELD_OFFSET,
+                                                    INDICATORS[s['online']], attr)
                         self.refresh_current_pad()
                 except:
                     pass
+
+    def check_online_streams(self):
+        pool = Pool(CHECK_ONLINE_THREADS)
+        urls = [s['url'] for s in self.streams]
+        statuses = pool.map_async(_check_stream, urls)
+
+        while not statuses.ready():
+            self.set_footer('Checked {0}/{1} streams'.format(len(self.streams)-statuses._number_left, len(self.streams)))
+            self.s.refresh()
+            sleep(1)
+
+        statuses = statuses.get()
+        for i, s in enumerate(self.streams):
+            s['online'] = statuses[i]
+
+        self.refilter_streams()
 
     def prompt_input(self, prompt=''):
         self.s.move(self.max_y-1, 0)
@@ -639,9 +689,13 @@ class StreamList(object):
 
     def filter_streams(self):
         self.filter = self.prompt_input('Filter: ').lower()
+        self.refilter_streams()
+
+    def refilter_streams(self):
         self.filtered_streams = []
         for s in self.streams:
-            if self.filter in s['name'].lower() or self.filter in s['url'].lower():
+            if ((self.show_offline_streams or s['online'] in [1,2])
+                and (self.filter in s['name'].lower() or self.filter in s['url'].lower())):
                 self.filtered_streams.append(s)
         self.filtered_streams.sort(key=lambda s:s['seen'], reverse=True)
         self.no_stream_shown = len(self.filtered_streams) == 0
