@@ -274,7 +274,7 @@ class StreamList(object):
                 if fd != sys.stdin:
                     # Set the new status line only if non-empty
                     msg = fd.readline()
-                    if len(msg) > 0:
+                    if msg:
                         self.status = msg[:-1]
                         self.redraw_status()
                 else:
@@ -521,7 +521,7 @@ class StreamList(object):
     def format_stream_line(self, stream):
         id = '{} '.format(stream['id']).rjust(ID_FIELD_WIDTH)
         name = ' {}'.format(stream['name']).ljust(NAME_FIELD_WIDTH)
-        res  = ' {}'.format(stream['res']).ljust(RES_FIELD_WIDTH)
+        res  = ' {}'.format(stream['res'][:10]).ljust(RES_FIELD_WIDTH)
         views  = '{} '.format(stream['seen']).rjust(VIEWS_FIELD_WIDTH)
         p = self.q.get_process(stream['id']) != None
         if p:
@@ -553,7 +553,7 @@ class StreamList(object):
             row = self.pads[self.current_pad].getyx()[0]
             s = self.filtered_streams[row]
             self.set_footer('{}/{} {} {}'.format(row+1, len(self.filtered_streams), s['url'], s['res']))
-            self.s.refresh
+            self.s.refresh()
 
     def check_stopped_streams(self):
         finished = self.q.get_finished()
@@ -662,7 +662,7 @@ class StreamList(object):
                 last_seen = int(time())
             else:
                 seen = last_seen = 0
-            if len(self.streams) == 0:
+            if not self.streams:
                 id = 1
             else:
                 self.max_id += 1
@@ -711,9 +711,9 @@ class StreamList(object):
         self.streams.remove(s)
         pad.deleteln()
         self.sync_store()
-        if len(self.streams) == 0:
+        if not self.streams:
             self.no_streams = True
-        if len(self.filtered_streams) == 0:
+        if not self.filtered_streams:
             self.no_stream_shown = True
         if pad.getyx()[0] == len(self.filtered_streams) and not self.no_stream_shown:
             self.move(-1)
@@ -763,7 +763,7 @@ class StreamList(object):
     def prompt_new_stream(self):
         url = self.prompt_input('New stream URL (empty to cancel): ')
         name = url.split('/')[-1]
-        if len(name) > 0:
+        if name:
             self.add_stream(name, url)
             self.move(len(self.filtered_streams)-1, absolute=True)
             self.show_streams()
