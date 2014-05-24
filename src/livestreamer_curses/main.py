@@ -229,6 +229,7 @@ class StreamList(object):
         curses.curs_set(0)
 
         self.s = s
+        self.s.keypad(1)
 
         self.get_screen_size()
 
@@ -306,9 +307,9 @@ class StreamList(object):
                 else:
                     # Main event loop
                     c = self.pads[self.current_pad].getch()
-                    if c == curses.KEY_UP or c == ord('k') or c == 65:
+                    if c == curses.KEY_UP or c == ord('k'):
                         self.move(-1)
-                    elif c == curses.KEY_DOWN or c == ord('j') or c == 66:
+                    elif c == curses.KEY_DOWN or c == ord('j'):
                         self.move(1)
                     elif c == ord('f'):
                         if self.current_pad == 'streams':
@@ -399,6 +400,7 @@ class StreamList(object):
     def init_help(self):
         help_pad_length = 27    # there should be a neater way to do this
         h = curses.newpad(help_pad_length, self.pad_w)
+        h.keypad(1)
 
         h.addstr( 0, 0, 'STREAM MANAGEMENT', curses.A_BOLD)
         h.addstr( 2, 0, '  Enter : start stream')
@@ -452,6 +454,7 @@ class StreamList(object):
             self.pads['streams'].clear()
             self.refresh_current_pad()
         pad = curses.newpad(max(1,len(self.filtered_streams)), self.pad_w)
+        pad.keypad(1)
         for s in self.filtered_streams:
             pad.addstr(y, 0, self.format_stream_line(s))
             y+=1
