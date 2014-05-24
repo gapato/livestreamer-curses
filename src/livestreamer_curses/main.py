@@ -702,7 +702,8 @@ class StreamList(object):
                 self.filtered_streams.append(s)
         self.filtered_streams.sort(key=lambda s:s['seen'], reverse=True)
         self.no_stream_shown = len(self.filtered_streams) == 0
-        self.status = 'New filter: {0} ({1} matches)'.format(self.filter, len(self.filtered_streams))
+        self.status = 'New filter: {0} ({1} matches, {2} showing offline)'.format(
+                self.filter or '<empty>', len(self.filtered_streams), '' if self.show_offline_streams else 'NOT')
         self.init_streams_pad()
         self.refresh_current_pad()
         self.redraw_stream_footer()
