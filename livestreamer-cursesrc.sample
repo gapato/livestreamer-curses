@@ -23,3 +23,6 @@ LIVESTREAMER_COMMANDS = [
     "livestreamer -p 'vlc --qt-minimal-view'",
     "livestreamer -p 'vlc --qt-minimal-view' --rtmpdump-proxy localhost:1234"
 ]
+
+# Whether to check for online streams on start
+CHECK_ONLINE_ON_START = False

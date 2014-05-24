@@ -248,6 +248,9 @@ class StreamList(object):
 
         signal.signal(28, self.resize)
 
+        if 'CHECK_ONLINE_ON_START' in dir(self.rc_module) and self.rc_module.CHECK_ONLINE_ON_START:
+            self.check_online_streams()
+
     def getheightwidth(self):
         """ getwidth() -> (int, int)
 
@@ -609,12 +612,13 @@ class StreamList(object):
                     pass
 
     def check_online_streams(self):
+        self.set_footer(' Checking online streams...')
         pool = Pool(CHECK_ONLINE_THREADS)
         urls = [s['url'] for s in self.streams]
         statuses = pool.map_async(_check_stream, urls)
 
         while not statuses.ready():
-            self.set_footer('Checked {0}/{1} streams'.format(len(self.streams)-statuses._number_left, len(self.streams)))
+            self.set_footer(' Checked {0}/{1} streams'.format(len(self.streams)-statuses._number_left, len(self.streams)))
             self.s.refresh()
             sleep(1)
 
