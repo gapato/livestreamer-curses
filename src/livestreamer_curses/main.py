@@ -371,7 +371,6 @@ class StreamList(object):
 
         """
         max_y, max_x = self.getheightwidth()
-        #raise ValueError('{} {}'.format(max_y, max_x))
         self.pad_x = 0
         self.max_y, self.max_x = (max_y-1, max_x-1)
         self.pad_w = max_x-1*self.pad_x
