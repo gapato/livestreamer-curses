@@ -241,15 +241,15 @@ class StreamList(object):
         self.current_pad = 'streams'
 
         self.set_title(TITLE_STRING)
-        self.set_footer('Ready')
 
         self.got_g = False
-        self.status = ''
 
         signal.signal(28, self.resize)
 
         if 'CHECK_ONLINE_ON_START' in dir(self.rc_module) and self.rc_module.CHECK_ONLINE_ON_START:
             self.check_online_streams()
+
+        self.set_status('Ready')
 
     def getheightwidth(self):
         """ getwidth() -> (int, int)
@@ -305,8 +305,7 @@ class StreamList(object):
                     # Set the new status line only if non-empty
                     msg = fd.readline()
                     if msg:
-                        self.status = msg[:-1]
-                        self.redraw_status()
+                        self.set_status(msg[:-1])
                 else:
                     # Main event loop
                     c = self.pads[self.current_pad].getch()
@@ -558,8 +557,8 @@ class StreamList(object):
 
     def format_stream_line(self, stream):
         id = '{} '.format(stream['id']).rjust(ID_FIELD_WIDTH)
-        name = ' {}'.format(stream['name']).ljust(NAME_FIELD_WIDTH)
-        res  = ' {}'.format(stream['res'][:10]).ljust(RES_FIELD_WIDTH)
+        name = ' {}'.format(stream['name'][:NAME_FIELD_WIDTH-2]).ljust(NAME_FIELD_WIDTH)
+        res  = ' {}'.format(stream['res'][:RES_FIELD_WIDTH-2]).ljust(RES_FIELD_WIDTH)
         views  = '{} '.format(stream['seen']).rjust(VIEWS_FIELD_WIDTH)
         p = self.q.get_process(stream['id']) != None
         if p:
@@ -582,9 +581,14 @@ class StreamList(object):
         pad.move(row, 0)
         self.refresh_current_pad()
 
+    def set_status(self, status):
+        self.status = status
+        self.redraw_status()
+
     def redraw_status(self):
         self.s.move(self.max_y, 0)
         self.overwrite_line(self.status[:self.max_x], curses.A_NORMAL)
+        self.s.refresh()
 
     def redraw_stream_footer(self):
         if not self.no_stream_shown:
@@ -612,15 +616,18 @@ class StreamList(object):
                     pass
 
     def check_online_streams(self):
-        self.set_footer(' Checking online streams...')
+        self.set_status(' Checking online streams...')
         pool = Pool(CHECK_ONLINE_THREADS)
         urls = [s['url'] for s in self.streams]
         statuses = pool.map_async(_check_stream, urls)
+        n_streams = len(self.streams)
 
         while not statuses.ready():
-            self.set_footer(' Checked {0}/{1} streams'.format(len(self.streams)-statuses._number_left, len(self.streams)))
+            sleep(0.2)
+            if statuses._number_left == n_streams:
+                continue
+            self.set_status(' Checked {0}/{1} streams...'.format(n_streams-statuses._number_left, n_streams))
             self.s.refresh()
-            sleep(1)
 
         statuses = statuses.get()
         for i, s in enumerate(self.streams):
@@ -705,7 +712,7 @@ class StreamList(object):
                 self.filtered_streams.append(s)
         self.filtered_streams.sort(key=lambda s:s['seen'], reverse=True)
         self.no_stream_shown = len(self.filtered_streams) == 0
-        self.status = 'New filter: {0} ({1} matches, {2} showing offline)'.format(
+        self.status = ' Filter: {0} ({1} matches, {2} showing offline)'.format(
                 self.filter or '<empty>', len(self.filtered_streams), '' if self.show_offline_streams else 'NOT')
         self.init_streams_pad()
         self.refresh_current_pad()
