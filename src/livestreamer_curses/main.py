@@ -37,7 +37,8 @@ from fcntl import ioctl
 import termios
 import imp
 from livestreamer import Livestreamer
-from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool as Pool
+from multiprocessing import Manager
 
 
 ID_FIELD_WIDTH   = 6
@@ -59,19 +60,7 @@ INDICATORS = [
         '  !  '  # error
 ]
 
-CHECK_ONLINE_THREADS = 10
-
-## UGLY, I don't know how to do that better ##
-LIVESTREAMER_INSTANCE = Livestreamer()
-def _check_stream(url):
-    try:
-        plugin = LIVESTREAMER_INSTANCE.resolve_url(url)
-        avail_streams = plugin.get_streams()
-        if avail_streams:
-            return 1
-        return 0
-    except:
-        return 3
+CHECK_ONLINE_THREADS = 15
 
 class QueueFull(Exception): pass
 class QueueDuplicate(Exception): pass
@@ -208,6 +197,8 @@ class StreamList(object):
         self.no_streams = self.streams == []
         self.no_stream_shown = self.no_streams
         self.q = ProcessList(StreamPlayer().play)
+
+        self.livestreamer = Livestreamer()
 
     def __del__(self):
         """ Stop playing streams and sync storage """
@@ -615,18 +606,37 @@ class StreamList(object):
                 except:
                     pass
 
+
+    def _check_stream(self, url):
+        try:
+            plugin = self.livestreamer.resolve_url(url)
+            avail_streams = plugin.get_streams()
+            if avail_streams:
+                return 1
+            return 0
+        except:
+            return 3
+
     def check_online_streams(self):
         self.set_status(' Checking online streams...')
+
+        manager = Manager()
+        queue   = manager.Queue()
+
+        def check_stream_managed(args):
+            url, queue = args
+            status = self._check_stream(url)
+            queue.put(url)
+            return status
+
         pool = Pool(CHECK_ONLINE_THREADS)
-        urls = [s['url'] for s in self.streams]
-        statuses = pool.map_async(_check_stream, urls)
+        args = [(s['url'], queue) for s in self.streams]
+        statuses = pool.map_async(check_stream_managed, args)
         n_streams = len(self.streams)
 
         while not statuses.ready():
-            sleep(0.2)
-            if statuses._number_left == n_streams:
-                continue
-            self.set_status(' Checked {0}/{1} streams...'.format(n_streams-statuses._number_left, n_streams))
+            sleep(0.1)
+            self.set_status(' Checked {0}/{1} streams...'.format(queue.qsize(), n_streams))
             self.s.refresh()
 
         statuses = statuses.get()
@@ -712,7 +722,7 @@ class StreamList(object):
                 self.filtered_streams.append(s)
         self.filtered_streams.sort(key=lambda s:s['seen'], reverse=True)
         self.no_stream_shown = len(self.filtered_streams) == 0
-        self.status = ' Filter: {0} ({1} matches, {2} showing offline)'.format(
+        self.status = ' Filter: {0} ({1} matches, {2} showing offline streams)'.format(
                 self.filter or '<empty>', len(self.filtered_streams), '' if self.show_offline_streams else 'NOT')
         self.init_streams_pad()
         self.refresh_current_pad()
@@ -753,7 +763,7 @@ class StreamList(object):
 
             self.set_status(' Checking if new stream is online...')
             self.s.refresh()
-            online = _check_stream(url)
+            online = self._check_stream(url)
 
             new_stream = {
                     'id'        : id,
