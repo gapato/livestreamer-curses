@@ -1,3 +1,5 @@
+[![PyPI version](https://badge.fury.io/py/livestreamer-curses.svg)](http://badge.fury.io/py/livestreamer-curses) [![Downloads](https://pypip.in/download/livestreamer-curses/badge.png)](https://pypi.python.org/pypi/livestreamer-curses/)
+
 ## Livestreamer-curses
 
 Livestreamer-curses is a limited front-end to Chrippa's [Livestreamer](https://github.com/chrippa/livestreamer) for UNIX systems.
