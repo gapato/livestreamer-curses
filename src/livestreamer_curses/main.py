@@ -751,21 +751,22 @@ class StreamList(object):
             else:
                 actual_res = DEFAULT_RESOLUTION_HARD
 
+            self.set_status(' Checking if new stream is online...')
+            self.s.refresh()
+            online = _check_stream(url)
+
             new_stream = {
                     'id'        : id,
                     'name'      : name,
                     'seen'      : seen,
                     'last_seen' : last_seen,
                     'res'       : actual_res,
-                    'url'       : url
+                    'url'       : url,
+                    'online'    : online
                 }
             self.streams.append(new_stream)
             self.no_streams = False
-            if self.filter in name.lower() or self.filter in url.lower():
-                self.filtered_streams.append(new_stream)
-            self.no_stream_shown = len(self.filtered_streams) == 0
-            try: self.init_streams_pad()
-            except: pass
+            self.refilter_streams()
             self.sync_store()
 
     def delete_stream(self):
