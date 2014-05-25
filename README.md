@@ -14,6 +14,10 @@ See sample file for usage.
 
 ### Changelog
 
+* v1.1.0 (25 May 2014)
+    * Feature: Added a way to check and filter offline streams. Use `O` to refresh and `o` to toggle showing offline. See also `CHECK_ONLINE_ON_START` option to perform this check when starting `livestreamer-curses`.
+    * Bugfixes: Better handling of special keys and configuration file
+
 * v1.0.0 (24 Feb. 2014)
     * *Backward incompatible changes*: change project structure to accomodate
       for distutils
