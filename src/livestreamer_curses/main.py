@@ -64,6 +64,7 @@ CHECK_ONLINE_THREADS = 15
 
 class QueueFull(Exception): pass
 class QueueDuplicate(Exception): pass
+class ShelveVersionMismatch(Exception): pass
 
 class ProcessList(object):
     """ Small class to store and handle calls to a given callable """
@@ -100,7 +101,7 @@ class ProcessList(object):
         """
 
         if len(self.q) < self.max_size:
-            if self.q.has_key(id):
+            if id in self.q:
                 raise QueueDuplicate
             p = self.call(*args)
             self.q[id] = p
@@ -162,17 +163,20 @@ class StreamList(object):
         """ Init and try to load a stream list, nothing about curses yet """
 
         # Open the storage (create it if necessary
-        f = shelve.open(filename, 'c')
+        try:
+            f = shelve.open(filename, 'c')
+        except:
+            raise ShelveVersionMismatch('Cannot use a database created with python 2 with python 3')
         self.max_id = 0
 
         # Sort streams by view count
-        if f.has_key('streams'):
+        try:
             self.streams = sorted(f['streams'], key=lambda s:s['seen'], reverse=True)
             for s in self.streams:
                 # Max id, needed when adding a new stream
                 self.max_id = max(self.max_id, s['id'])
                 s['online'] = 2
-        else:
+        except:
             self.streams = []
         self.filtered_streams = list(self.streams)
         self.filter = ''
@@ -180,7 +184,7 @@ class StreamList(object):
         self.rc_module = rc_module
 
         if 'LIVESTREAMER_COMMANDS' in dir(self.rc_module):
-            self.cmd_list = map(shlex.split, self.rc_module.LIVESTREAMER_COMMANDS)
+            self.cmd_list = list(map(shlex.split, self.rc_module.LIVESTREAMER_COMMANDS))
         else:
             self.cmd_list = [['livestreamer']]
         self.cmd_index = 0
@@ -202,10 +206,13 @@ class StreamList(object):
 
     def __del__(self):
         """ Stop playing streams and sync storage """
-        self.q.terminate()
-        self.store['cmd'] = self.cmd
-        self.store['streams'] = self.streams
-        self.store.close()
+        try:
+            self.q.terminate()
+            self.store['cmd'] = self.cmd
+            self.store['streams'] = self.streams
+            self.store.close()
+        except:
+            pass
 
     def __call__(self, s):
         # Terminal initialization
@@ -651,7 +658,7 @@ class StreamList(object):
         self.s.addstr(prompt)
         curses.curs_set(1)
         curses.echo()
-        r = self.s.getstr()
+        r = self.s.getstr().decode()
         curses.noecho()
         curses.curs_set(0)
         self.s.move(self.max_y-1, 0)
@@ -878,9 +885,13 @@ class StreamList(object):
 
 def main():
     parser = argparse.ArgumentParser(description='Livestreamer curses frontend.')
-    parser.add_argument('-d', type=unicode, metavar='database', help='default: ~/.livestreamer-curses.db',
+    try:
+        arg_type = unicode
+    except:
+        arg_type = str
+    parser.add_argument('-d', type=arg_type, metavar='database', help='default: ~/.livestreamer-curses.db',
                         default=os.path.join(os.environ['HOME'], u'.livestreamer-curses.db'))
-    parser.add_argument('-f', type=unicode, metavar='configfile', help='default: ~/.livestreamer-cursesrc',
+    parser.add_argument('-f', type=arg_type, metavar='configfile', help='default: ~/.livestreamer-cursesrc',
                         default=os.path.join(os.environ['HOME'], u'.livestreamer-cursesrc'))
     args = parser.parse_args()
 
