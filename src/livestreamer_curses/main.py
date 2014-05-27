@@ -40,6 +40,10 @@ from livestreamer import Livestreamer
 from multiprocessing.pool import ThreadPool as Pool
 from multiprocessing import Manager
 
+try:
+    from gdbm import error as GDBMError
+except:
+    from dbm.gnu import error as GDBMError
 
 ID_FIELD_WIDTH   = 6
 NAME_FIELD_WIDTH = 22
@@ -64,7 +68,7 @@ CHECK_ONLINE_THREADS = 15
 
 class QueueFull(Exception): pass
 class QueueDuplicate(Exception): pass
-class ShelveVersionMismatch(Exception): pass
+class ShelveError(Exception): pass
 
 class ProcessList(object):
     """ Small class to store and handle calls to a given callable """
@@ -162,11 +166,15 @@ class StreamList(object):
     def __init__(self, filename, rc_module):
         """ Init and try to load a stream list, nothing about curses yet """
 
+        self.db_was_read = False
+
         # Open the storage (create it if necessary
         try:
             f = shelve.open(filename, 'c')
-        except:
-            raise ShelveVersionMismatch('Cannot use a database created with python 2 with python 3')
+        except GDBMError as e:
+            raise ShelveError('Database is already in use, another livestreamer-curses instance might be already running')
+        except Exception:
+            raise ShelveError('Cannot use a database created with python 2 with python 3')
         self.max_id = 0
 
         # Sort streams by view count
@@ -178,6 +186,7 @@ class StreamList(object):
                 s['online'] = 2
         except:
             self.streams = []
+        self.db_was_read = True
         self.filtered_streams = list(self.streams)
         self.filter = ''
         self.show_offline_streams = False
@@ -208,9 +217,10 @@ class StreamList(object):
         """ Stop playing streams and sync storage """
         try:
             self.q.terminate()
-            self.store['cmd'] = self.cmd
-            self.store['streams'] = self.streams
-            self.store.close()
+            if self.db_was_read:
+                self.store['cmd'] = self.cmd
+                self.store['streams'] = self.streams
+                self.store.close()
         except:
             pass
 
