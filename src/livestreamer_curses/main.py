@@ -40,6 +40,13 @@ from livestreamer import Livestreamer
 from multiprocessing.pool import ThreadPool as Pool
 from multiprocessing import Manager
 
+PY3 = sys.version_info.major >= 3
+
+def dictiter(d):
+    if PY3:
+        return d.items()
+    return d.iteritems()
+
 try:
     from gdbm import error as GDBMError
 except:
@@ -115,9 +122,9 @@ class ProcessList(object):
     def get_finished(self):
         """ Clean up terminated processes and returns the list of their ids """
         indices  = []
-        for id, v in self.q.items():
+        for idf, v in dictiter(self.q):
             if v.poll() != None:
-                indices.append(id)
+                indices.append(idf)
 
         for i in indices:
             self.q.pop(i)
@@ -769,7 +776,7 @@ class StreamList(object):
                 actual_res = s_res
             elif type(s_res) == dict:
                 actual_res = DEFAULT_RESOLUTION_HARD
-                for (k,v) in s_res.iteritems():
+                for k,v in dictiter(s_res):
                     if k in url:
                         actual_res = v
                         break
