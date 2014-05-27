@@ -725,7 +725,7 @@ class StreamList(object):
         return None
 
     def clear_filter(self):
-        self.filter = None
+        self.filter = ''
         self.filtered_streams = self.streams
         self.no_stream_shown = self.no_streams
         self.status = 'Filter cleared'
