@@ -102,20 +102,20 @@ class ProcessList(object):
         """ Check is the List is full, returns a bool """
         return len(self.q) == 0
 
-    def put(self, id, *args):
+    def put(self, idf, *args):
         """ Spawn a new background process
 
-        id   : int, id of the process,
+        idf   : int, id of the process,
                unique among the queue or will raise QueueDuplicate
         args : optional arguments to pass to the callable
 
         """
 
         if len(self.q) < self.max_size:
-            if id in self.q:
+            if idf in self.q:
                 raise QueueDuplicate
             p = self.call(*args)
-            self.q[id] = p
+            self.q[idf] = p
         else:
             raise QueueFull
 
@@ -130,9 +130,9 @@ class ProcessList(object):
             self.q.pop(i)
         return indices
 
-    def get_process(self, id):
+    def get_process(self, idf):
         """ Get a process by id, returns None if there is no match """
-        return self.q.get(id)
+        return self.q.get(idf)
 
     def get_stdouts(self):
         """ Get the list of stdout of each process """
@@ -141,10 +141,10 @@ class ProcessList(object):
             souts.append(v.stdout)
         return souts
 
-    def terminate_process(self, id):
+    def terminate_process(self, idf):
         """ Terminate a process by id """
         try:
-            p = self.q.pop(id)
+            p = self.q.pop(idf)
             p.terminate()
             return p
         except:
@@ -485,11 +485,11 @@ class StreamList(object):
         self.s.clrtobot()
         self.current_pad = 'streams'
         if not self.no_streams:
-            id = 'ID'.center(ID_FIELD_WIDTH)
+            idf = 'ID'.center(ID_FIELD_WIDTH)
             name = 'Name'.center(NAME_FIELD_WIDTH)
             res = 'Resolution'.center(RES_FIELD_WIDTH)
             views = 'Views'.center(VIEWS_FIELD_WIDTH)
-            self.set_header('{}|{}|{}|{}| Status'.format(id, name, res, views))
+            self.set_header('{0} {1} {2} {3}  Status'.format(idf, name, res, views))
             self.redraw_stream_footer()
             self.redraw_status()
         else:
@@ -571,16 +571,16 @@ class StreamList(object):
         self.redraw_stream_footer()
 
     def format_stream_line(self, stream):
-        id = '{} '.format(stream['id']).rjust(ID_FIELD_WIDTH)
-        name = ' {}'.format(stream['name'][:NAME_FIELD_WIDTH-2]).ljust(NAME_FIELD_WIDTH)
-        res  = ' {}'.format(stream['res'][:RES_FIELD_WIDTH-2]).ljust(RES_FIELD_WIDTH)
-        views  = '{} '.format(stream['seen']).rjust(VIEWS_FIELD_WIDTH)
+        idf = '{0} '.format(stream['id']).rjust(ID_FIELD_WIDTH)
+        name = ' {0}'.format(stream['name'][:NAME_FIELD_WIDTH-2]).ljust(NAME_FIELD_WIDTH)
+        res  = ' {0}'.format(stream['res'][:RES_FIELD_WIDTH-2]).ljust(RES_FIELD_WIDTH)
+        views  = '{0} '.format(stream['seen']).rjust(VIEWS_FIELD_WIDTH)
         p = self.q.get_process(stream['id']) != None
         if p:
             indicator = '[>>>]'
         else:
             indicator = INDICATORS[stream['online']]
-        return '{}|{}|{}|{}|  {}'.format(id, name, res, views, indicator)
+        return '{0} {1} {2} {3}   {4}'.format(idf, name, res, views, indicator)
 
     def redraw_current_line(self):
         """ Redraw the highlighted line """
@@ -609,7 +609,7 @@ class StreamList(object):
         if not self.no_stream_shown:
             row = self.pads[self.current_pad].getyx()[0]
             s = self.filtered_streams[row]
-            self.set_footer('{}/{} {} {}'.format(row+1, len(self.filtered_streams), s['url'], s['res']))
+            self.set_footer('{0}/{1} {2} {3}'.format(row+1, len(self.filtered_streams), s['url'], s['res']))
             self.s.refresh()
 
     def check_stopped_streams(self):
@@ -619,7 +619,7 @@ class StreamList(object):
                 try:
                     i = self.filtered_streams.index(s)
                     if f == s['id']:
-                        self.set_footer('Stream {} has stopped'.format(s['name']))
+                        self.set_footer('Stream {0} has stopped'.format(s['name']))
                         if i == self.pads[self.current_pad].getyx()[0]:
                             attr = curses.A_REVERSE
                         else:
@@ -689,7 +689,7 @@ class StreamList(object):
             hint = '[y]/n'
         else:
             hint = 'y/[n]'
-        self.s.addstr('{} {} '.format(prompt, hint))
+        self.s.addstr('{0} {1} '.format(prompt, hint))
         curses.curs_set(1)
         curses.echo()
         r = self.s.getch()
@@ -746,8 +746,8 @@ class StreamList(object):
                 self.filtered_streams.append(s)
         self.filtered_streams.sort(key=lambda s:s['seen'], reverse=True)
         self.no_stream_shown = len(self.filtered_streams) == 0
-        self.status = ' Filter: {0} ({1} matches, {2} showing offline streams)'.format(
-                self.filter or '<empty>', len(self.filtered_streams), '' if self.show_offline_streams else 'NOT')
+        self.status = ' Filter: {0} ({1}/{2} matches, {3} showing offline streams)'.format(
+                self.filter or '<empty>', len(self.filtered_streams), len(self.streams), '' if self.show_offline_streams else 'NOT')
         self.init_streams_pad()
         self.refresh_current_pad()
         self.redraw_stream_footer()
@@ -765,10 +765,10 @@ class StreamList(object):
             else:
                 seen = last_seen = 0
             if not self.streams:
-                id = 1
+                idf = 1
             else:
                 self.max_id += 1
-                id = self.max_id
+                idf = self.max_id
 
             s_res = res or self.default_res
 
@@ -790,7 +790,7 @@ class StreamList(object):
             online = self._check_stream(url)
 
             new_stream = {
-                    'id'        : id,
+                    'id'        : idf,
                     'name'      : name,
                     'seen'      : seen,
                     'last_seen' : last_seen,
@@ -808,7 +808,7 @@ class StreamList(object):
             return
         pad = self.pads[self.current_pad]
         s = self.filtered_streams[pad.getyx()[0]]
-        if not self.prompt_confirmation('Delete stream {}?'.format(s['name'])):
+        if not self.prompt_confirmation('Delete stream {0}?'.format(s['name'])):
             return
         self.filtered_streams.remove(s)
         self.streams.remove(s)
@@ -829,7 +829,7 @@ class StreamList(object):
             return
         pad = self.pads[self.current_pad]
         s = self.filtered_streams[pad.getyx()[0]]
-        if not self.prompt_confirmation('Reset stream {}?'.format(s['name'])):
+        if not self.prompt_confirmation('Reset stream {0}?'.format(s['name'])):
             return
         s['seen']      = 0
         s['last_seen'] = 0
@@ -846,7 +846,7 @@ class StreamList(object):
             return
         pad = self.pads[self.current_pad]
         s = self.filtered_streams[pad.getyx()[0]]
-        new_val = self.prompt_input('{} (empty to cancel): '.format(prompt_info[attr]))
+        new_val = self.prompt_input('{0} (empty to cancel): '.format(prompt_info[attr]))
         if new_val != '':
             s[attr] = new_val
             self.redraw_current_line()
@@ -885,7 +885,7 @@ class StreamList(object):
             if type(e) == QueueDuplicate:
                 self.set_footer('This stream is already playing')
             elif type(e) == OSError:
-                self.set_footer('/!\ Faulty command line: {}'.format(e.strerror))
+                self.set_footer('/!\ Faulty command line: {0}'.format(e.strerror))
             else:
                 raise e
 
