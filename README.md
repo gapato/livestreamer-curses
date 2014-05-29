@@ -5,7 +5,7 @@
 Livestreamer-curses is a limited front-end to Chrippa's [Livestreamer](https://github.com/chrippa/livestreamer) for UNIX systems.
 With it you can manage a list of your favorite streams and play them (several at a time if your connection can handle it).
 
-![screenshot](http://s14.postimg.org/ctfx2bvbl/main.png)
+![screenshot](http://s30.postimg.org/j310vhhkh/screenshot.png)
 
 ### Usage
 
@@ -15,6 +15,10 @@ To change the way to call `livestreamer`, use the configuration file (default: `
 See sample file for usage.
 
 ### Changelog
+
+* v1.2.0 (29 Feb 2014)
+    * Feature: Python 3 support
+    * Bugfixes: Window resizing
 
 * v1.1.0 (25 May 2014)
     * Feature: Added a way to check and filter offline streams. Use `O` to refresh and `o` to toggle showing offline. See also `CHECK_ONLINE_ON_START` option to perform this check when starting `livestreamer-curses`.
