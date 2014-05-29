@@ -193,6 +193,7 @@ class StreamList(object):
         self.db_was_read = True
         self.filtered_streams = list(self.streams)
         self.filter = ''
+        self.all_streams_offline = None
         self.show_offline_streams = False
         self.rc_module = rc_module
 
@@ -243,7 +244,7 @@ class StreamList(object):
         self.s = s
         self.s.keypad(1)
 
-        self.get_screen_size()
+        self.set_screen_size()
 
         self.pads = {}
         self.offsets = {}
@@ -273,24 +274,23 @@ class StreamList(object):
         except KeyError:
             height, width = struct.unpack(
                 "hhhh", ioctl(0, termios.TIOCGWINSZ ,"\000"*8))[0:2]
-            if not height: return 25, 80
+            if not height:
+                return 25, 80
             return height, width
 
     def resize(self, signum, obj):
         """ handler for SIGWINCH """
         self.s.clear()
-        self.s.refresh()
         stream_cursor = self.pads['streams'].getyx()[0]
         for pad in self.pads.values():
             pad.clear()
-        self.pads = {}
-        self.get_screen_size()
-        self.s.resize(self.max_y+1, self.max_x+1)
-        self.set_title(TITLE_STRING)
         self.s.refresh()
+        self.set_screen_size()
+        self.set_title(TITLE_STRING)
         self.init_help()
         self.init_streams_pad()
-        self.move(stream_cursor, absolute=True, pad_name='streams')
+        self.move(stream_cursor, absolute=True, pad_name='streams', refresh=False)
+        self.s.refresh()
         self.show()
 
     def run(self):
@@ -378,17 +378,18 @@ class StreamList(object):
                     elif c == ord('h') or c == ord('?'):
                         self.show_help()
 
-    def get_screen_size(self):
+    def set_screen_size(self):
         """ Setup screen size and padding
 
         We have need 2 free lines at the top and 2 free lines at the bottom
 
         """
-        max_y, max_x = self.getheightwidth()
+        height, width = self.getheightwidth()
+        curses.resizeterm(height, width)
         self.pad_x = 0
-        self.max_y, self.max_x = (max_y-1, max_x-1)
-        self.pad_w = max_x-1*self.pad_x
-        self.pad_h = max_y-3
+        self.max_y, self.max_x = (height-1, width-1)
+        self.pad_h = height-3
+        self.pad_w = width-2*self.pad_x
 
     def overwrite_line(self, msg, attr=curses.A_NORMAL):
         self.s.clrtoeol()
@@ -405,10 +406,17 @@ class StreamList(object):
         self.s.move(1, 0)
         self.overwrite_line(msg, attr=curses.A_NORMAL)
 
-    def set_footer(self, msg):
+    def set_footer(self, msg, reverse=True):
         """ Set first footer line text """
         self.s.move(self.max_y-1, 0)
-        self.overwrite_line(msg, attr=curses.A_REVERSE)
+        if reverse:
+            self.overwrite_line(msg, attr=curses.A_REVERSE)
+        else:
+            self.overwrite_line(msg, attr=curses.A_NORMAL)
+
+    def clear_footer(self):
+        self.s.move(self.max_y-1, 0)
+        self.overwrite_line('')
 
     def init_help(self):
         help_pad_length = 27    # there should be a neater way to do this
@@ -463,9 +471,6 @@ class StreamList(object):
     def init_streams_pad(self, start_row=0):
         """ Create a curses pad and populate it with a line by stream """
         y = 0
-        if self.pads.get('streams'):
-            self.pads['streams'].clear()
-            self.refresh_current_pad()
         pad = curses.newpad(max(1,len(self.filtered_streams)), self.pad_w)
         pad.keypad(1)
         for s in self.filtered_streams:
@@ -473,7 +478,7 @@ class StreamList(object):
             y+=1
         self.offsets['streams'] = 0
         pad.move(start_row, 0)
-        if not self.no_streams:
+        if not self.no_stream_shown:
             pad.chgat(curses.A_REVERSE)
         self.pads['streams'] = pad
 
@@ -481,7 +486,24 @@ class StreamList(object):
         self.s.move(1,0)
         self.s.clrtobot()
         self.current_pad = 'streams'
-        if not self.no_streams:
+        if self.no_stream_shown:
+            self.hide_streams_pad()
+            if self.no_streams:
+                self.s.addstr(5, 5, 'It seems you don\'t have any stream yet')
+                self.s.addstr(6, 5, 'Hit \'a\' to add a new one')
+                self.s.addstr(8, 5, 'Hit \'?\' for help')
+            elif self.all_streams_offline and not self.show_offline_streams:
+                self.s.addstr(5, 5, 'All streams are currently offline')
+                self.s.addstr(6, 5, 'Hit \'o\' to show offline streams')
+                self.s.addstr(7, 5, 'Hit \'O\' to refresh')
+                self.s.addstr(9, 5, 'Hit \'?\' for help')
+            else:
+                self.s.addstr(5, 5, 'No stream matches your filter')
+                self.s.addstr(6, 5, 'Hit \'f\' to change filter')
+                self.s.addstr(7, 5, 'Hit \'F\' to clear')
+                self.s.addstr(8, 5, 'Hit \'o\' to show offline streams')
+                self.s.addstr(10, 5, 'Hit \'?\' for help')
+        else:
             idf = 'ID'.center(ID_FIELD_WIDTH)
             name = 'Name'.center(NAME_FIELD_WIDTH)
             res = 'Resolution'.center(RES_FIELD_WIDTH)
@@ -489,19 +511,20 @@ class StreamList(object):
             self.set_header('{0} {1} {2} {3}  Status'.format(idf, name, res, views))
             self.redraw_stream_footer()
             self.redraw_status()
-        else:
-            self.s.addstr(5, 5, 'It seems you don\'t have any stream yet,')
-            self.s.addstr(6, 5, 'hit \'a\' to add a new one.')
-            self.s.addstr(8, 5, 'Hit \'?\' for help.')
-            self.set_footer(' Ready')
         self.s.refresh()
-        self.refresh_current_pad()
+        if not self.no_stream_shown:
+            self.refresh_current_pad()
+
+    def hide_streams_pad(self):
+        pad = self.pads.get('streams')
+        if pad:
+            pad.refresh(0, 0, 2, 0, 2, 0)
 
     def refresh_current_pad(self):
         pad = self.pads[self.current_pad]
         pad.refresh(self.offsets[self.current_pad], 0, 2, self.pad_x, self.pad_h, self.pad_w)
 
-    def move(self, direction, absolute=False, pad_name=None):
+    def move(self, direction, absolute=False, pad_name=None, refresh=True):
         """ Scroll the current pad
 
         direction : (int)  move by one in the given direction
@@ -564,8 +587,8 @@ class StreamList(object):
             pad.chgat(curses.A_REVERSE)
         if pad_name == 'streams':
             self.redraw_stream_footer()
-        self.refresh_current_pad()
-        self.redraw_stream_footer()
+        if refresh:
+            self.refresh_current_pad()
 
     def format_stream_line(self, stream):
         idf = '{0} '.format(stream['id']).rjust(ID_FIELD_WIDTH)
@@ -615,18 +638,17 @@ class StreamList(object):
             for s in self.streams:
                 try:
                     i = self.filtered_streams.index(s)
-                    if f == s['id']:
-                        self.set_footer('Stream {0} has stopped'.format(s['name']))
-                        if i == self.pads[self.current_pad].getyx()[0]:
-                            attr = curses.A_REVERSE
-                        else:
-                            attr = curses.A_NORMAL
-                        self.pads['streams'].addstr(i, PLAYING_FIELD_OFFSET,
-                                                    INDICATORS[s['online']], attr)
-                        self.refresh_current_pad()
-                except:
-                    pass
-
+                except ValueError:
+                    continue
+                if f == s['id']:
+                    self.set_footer('Stream {0} has stopped'.format(s['name']))
+                    if i == self.pads[self.current_pad].getyx()[0]:
+                        attr = curses.A_REVERSE
+                    else:
+                        attr = curses.A_NORMAL
+                    self.pads['streams'].addstr(i, PLAYING_FIELD_OFFSET,
+                                                INDICATORS[s['online']], attr)
+                    self.refresh_current_pad()
 
     def _check_stream(self, url):
         try:
@@ -639,6 +661,7 @@ class StreamList(object):
             return 3
 
     def check_online_streams(self):
+        self.all_streams_offline = True
         self.set_status(' Checking online streams...')
 
         done_queue   = queue.Queue()
@@ -662,11 +685,13 @@ class StreamList(object):
         statuses = statuses.get()
         for i, s in enumerate(self.streams):
             s['online'] = statuses[i]
+            if s['online']:
+                self.all_streams_offline = False
 
         self.refilter_streams()
 
     def prompt_input(self, prompt=''):
-        self.s.move(self.max_y-1, 0)
+        self.s.move(self.max_y, 0)
         self.s.clrtoeol()
         self.s.addstr(prompt)
         curses.curs_set(1)
@@ -674,7 +699,7 @@ class StreamList(object):
         r = self.s.getstr().decode()
         curses.noecho()
         curses.curs_set(0)
-        self.s.move(self.max_y-1, 0)
+        self.s.move(self.max_y, 0)
         self.s.clrtoeol()
         return r
 
@@ -722,19 +747,13 @@ class StreamList(object):
 
     def clear_filter(self):
         self.filter = ''
-        self.filtered_streams = self.streams
-        self.no_stream_shown = self.no_streams
-        self.status = 'Filter cleared'
-        self.init_streams_pad()
-        self.refresh_current_pad()
-        self.redraw_stream_footer()
-        self.redraw_status()
+        self.refilter_streams()
 
     def filter_streams(self):
         self.filter = self.prompt_input('Filter: ').lower()
         self.refilter_streams()
 
-    def refilter_streams(self):
+    def refilter_streams(self, quiet=False):
         self.filtered_streams = []
         for s in self.streams:
             if ((self.show_offline_streams or s['online'] in [1,2])
@@ -742,11 +761,13 @@ class StreamList(object):
                 self.filtered_streams.append(s)
         self.filtered_streams.sort(key=lambda s:s['seen'], reverse=True)
         self.no_stream_shown = len(self.filtered_streams) == 0
-        self.status = ' Filter: {0} ({1}/{2} matches, {3} showing offline streams)'.format(
-                self.filter or '<empty>', len(self.filtered_streams), len(self.streams), '' if self.show_offline_streams else 'NOT')
+        if not quiet:
+            self.status = ' Filter: {0} ({1}/{2} matches, {3} showing offline streams)'.format(
+                    self.filter or '<empty>', len(self.filtered_streams), len(self.streams),
+                    '' if self.show_offline_streams else 'NOT')
         self.init_streams_pad()
-        self.refresh_current_pad()
         self.redraw_stream_footer()
+        self.show_streams()
         self.redraw_status()
 
     def add_stream(self, name, url, res=None, bump=False):
@@ -815,7 +836,7 @@ class StreamList(object):
         if not self.filtered_streams:
             self.no_stream_shown = True
         if pad.getyx()[0] == len(self.filtered_streams) and not self.no_stream_shown:
-            self.move(-1)
+            self.move(-1, refresh=False)
             pad.chgat(curses.A_REVERSE)
         self.redraw_current_line()
         self.show_streams()
@@ -864,7 +885,7 @@ class StreamList(object):
         name = url.split('/')[-1]
         if name:
             self.add_stream(name, url)
-            self.move(len(self.filtered_streams)-1, absolute=True)
+            self.move(len(self.filtered_streams)-1, absolute=True, refresh=False)
             self.show_streams()
 
     def play_stream(self):
