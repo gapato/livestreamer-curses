@@ -23,6 +23,8 @@ setup(name="livestreamer-curses",
           "console_scripts": ["livestreamer-curses=livestreamer_curses.main:main"]
       },
       classifiers=["Operating System :: POSIX",
+                  "Programming Language :: Python :: 2",
+                  "Programming Language :: Python :: 3",
                    "Environment :: Console :: Curses",
                    "Development Status :: 4 - Beta",
                    "License :: OSI Approved :: MIT License",
