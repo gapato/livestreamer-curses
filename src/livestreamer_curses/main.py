@@ -42,10 +42,12 @@ from multiprocessing import Manager
 
 PY3 = sys.version_info.major >= 3
 
-try:
-    from gdbm import error as GDBMError
-except:
+if PY3:
     from dbm.gnu import error as GDBMError
+    import queue
+else:
+    from gdbm import error as GDBMError
+    import Queue as queue
 
 ID_FIELD_WIDTH   = 6
 NAME_FIELD_WIDTH = 22
@@ -639,23 +641,22 @@ class StreamList(object):
     def check_online_streams(self):
         self.set_status(' Checking online streams...')
 
-        manager = Manager()
-        queue   = manager.Queue()
+        done_queue   = queue.Queue()
 
         def check_stream_managed(args):
             url, queue = args
             status = self._check_stream(url)
-            queue.put(url)
+            done_queue.put(url)
             return status
 
         pool = Pool(CHECK_ONLINE_THREADS)
-        args = [(s['url'], queue) for s in self.streams]
+        args = [(s['url'], done_queue) for s in self.streams]
         statuses = pool.map_async(check_stream_managed, args)
         n_streams = len(self.streams)
 
         while not statuses.ready():
             sleep(0.1)
-            self.set_status(' Checked {0}/{1} streams...'.format(queue.qsize(), n_streams))
+            self.set_status(' Checked {0}/{1} streams...'.format(done_queue.qsize(), n_streams))
             self.s.refresh()
 
         statuses = statuses.get()
