@@ -16,7 +16,7 @@ See sample file for usage.
 
 ### Changelog
 
-* v1.2.0 (29 Feb 2014)
+* v1.2.0 (29 May 2014)
     * Feature: Python 3 support
     * Bugfixes: Window resizing
 
