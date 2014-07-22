@@ -30,7 +30,7 @@ import os
 import shelve
 import signal
 import shlex
-from subprocess import call, STDOUT, Popen, PIPE
+from subprocess import STDOUT, Popen, PIPE
 import select
 import struct
 from fcntl import ioctl
@@ -38,15 +38,12 @@ import termios
 import imp
 from livestreamer import Livestreamer
 from multiprocessing.pool import ThreadPool as Pool
-from multiprocessing import Manager
 
 PY3 = sys.version_info.major >= 3
 
 if PY3:
-    from dbm.gnu import error as GDBMError
     import queue
 else:
-    from gdbm import error as GDBMError
     import Queue as queue
 
 ID_FIELD_WIDTH   = 6
@@ -175,10 +172,11 @@ class StreamList(object):
         # Open the storage (create it if necessary
         try:
             f = shelve.open(filename, 'c')
-        except GDBMError as e:
-            raise ShelveError('Database is already in use, another livestreamer-curses instance might be already running')
         except Exception:
-            raise ShelveError('Cannot use a database created with python 2 with python 3')
+            raise ShelveError(
+                'Database could not be opened, another livestreamer-curses instance might be already running. '
+                'Please note that a database created with Python 2.x cannot be used with Python 3.x and vice versa.'
+            )
         self.max_id = 0
 
         # Sort streams by view count
