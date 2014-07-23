@@ -38,6 +38,7 @@ import termios
 import imp
 from livestreamer import Livestreamer
 from multiprocessing.pool import ThreadPool as Pool
+import json
 
 PY3 = sys.version_info.major >= 3
 
@@ -164,7 +165,7 @@ class StreamPlayer(object):
 
 class StreamList(object):
 
-    def __init__(self, filename, rc_module):
+    def __init__(self, filename, rc_module, list_streams=False, init_stream_list=None):
         """ Init and try to load a stream list, nothing about curses yet """
 
         self.db_was_read = False
@@ -177,7 +178,17 @@ class StreamList(object):
                 'Database could not be opened, another livestreamer-curses instance might be already running. '
                 'Please note that a database created with Python 2.x cannot be used with Python 3.x and vice versa.'
             )
+
         self.max_id = 0
+        if init_stream_list:
+            f['streams'] = init_stream_list
+            for i, s in enumerate(f['streams']):
+                s['id'] = s.get('id') or i
+                s['seen'] = s.get('seen') or 0
+                s['last_seen'] = s.get('last_seen') or 0
+            self.max_id = i
+            f.sync()
+
 
         # Sort streams by view count
         try:
@@ -186,6 +197,10 @@ class StreamList(object):
                 # Max id, needed when adding a new stream
                 self.max_id = max(self.max_id, s['id'])
                 s['online'] = 2
+            if list_streams:
+                print(json.dumps(self.streams))
+                f.close()
+                sys.exit(0)
         except:
             self.streams = []
         self.db_was_read = True
@@ -925,6 +940,8 @@ def main():
                         default=os.path.join(os.environ['HOME'], u'.livestreamer-curses.db'))
     parser.add_argument('-f', type=arg_type, metavar='configfile', help='default: ~/.livestreamer-cursesrc',
                         default=os.path.join(os.environ['HOME'], u'.livestreamer-cursesrc'))
+    parser.add_argument('-p', action='store', type=arg_type, metavar='JSON file', help='load (overwrite) database with data from this file. Use - for stdin')
+    parser.add_argument('-l', action='store_true', help='print the list of streams and exit')
     args = parser.parse_args()
 
     rc_filename = args.f
@@ -936,8 +953,33 @@ def main():
             sys.exit(1)
     else:
         rc_module = imp.new_module('rc')
-    l = StreamList(args.d, rc_module)
-    curses.wrapper(l)
+
+    init_stream_list = []
+    if args.p:
+        if args.p == '-':
+            buf = sys.stdin
+        elif os.path.exists(args.p):
+            buf = open(args.p)
+        else:
+            IOError("No such file or directory: '{0}'".format(args.p))
+        init_stream_list = json.load(buf)
+        if not isinstance(init_stream_list, list):
+            raise ValueError('The stream list must be provided as a valid JSON array')
+
+        keys = {'name':arg_type, 'url':arg_type, 'res':arg_type}
+        def check_stream(s):
+            for k, t in keys.items():
+                try:
+                    if not isinstance(s[k], t):
+                        return False
+                except:
+                    return False
+            return True
+        init_stream_list = list(filter(check_stream, init_stream_list))
+
+    l = StreamList(args.d, rc_module, list_streams=args.l, init_stream_list=init_stream_list)
+    if not args.l:
+        curses.wrapper(l)
 
 if __name__ == '__main__':
     main()
