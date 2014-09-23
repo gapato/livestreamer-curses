@@ -31,16 +31,23 @@ import json
 
 from .streamlist import StreamList
 
+RC_DEFAULT_DIR  = (os.environ.get('XDG_CONFIG_HOME') or
+                  os.path.expanduser(u'~/.config/livestreamer-curses'))
+RC_DEFAULT_PATH = os.path.join(RC_DEFAULT_DIR, u'livestreamer-cursesrc')
+DB_DEFAULT_DIR  = (os.environ.get('XDG_DATA_HOME') or
+                  os.path.expanduser(u'~/.local/share/livestreamer-curses'))
+DB_DEFAULT_PATH = os.path.join(DB_DEFAULT_DIR, u'livestreamer-curses.db')
+
 def main():
     parser = argparse.ArgumentParser(description='Livestreamer curses frontend.')
     try:
         arg_type = unicode
     except:
         arg_type = str
-    parser.add_argument('-d', type=arg_type, metavar='database', help='default: ~/.livestreamer-curses.db',
-                        default=os.path.join(os.environ['HOME'], u'.livestreamer-curses.db'))
-    parser.add_argument('-f', type=arg_type, metavar='configfile', help='default: ~/.livestreamer-cursesrc',
-                        default=os.path.join(os.environ['HOME'], u'.livestreamer-cursesrc'))
+    parser.add_argument('-d', type=arg_type, metavar='database', help=u'default: ' + DB_DEFAULT_PATH,
+                       default=os.path.join(DB_DEFAULT_PATH))
+    parser.add_argument('-f', type=arg_type, metavar='configfile', help=u'default: ' + RC_DEFAULT_PATH,
+                        default=os.path.join(RC_DEFAULT_PATH))
     parser.add_argument('-p', action='store', type=arg_type, metavar='JSON file', help='load (overwrite) database with data from this file. Use - for stdin')
     parser.add_argument('-l', action='store_true', help='print the list of streams and exit')
     args = parser.parse_args()
