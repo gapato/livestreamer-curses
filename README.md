@@ -16,6 +16,11 @@ See sample file for usage.
 
 ### Changelog
 
+* v1.3.0 (25 Sep. 2014)
+   * Feature: Follow XDG specification, *you need to move your old rc and .db files, use -h flag to see where*
+   * Feature: Add options to overwrite/dump the database from a/to a file
+   * Bugfix: dbm issue on Mac OS X
+
 * v1.2.0 (29 May 2014)
     * Feature: Python 3 support
     * Bugfixes: Window resizing

@@ -22,7 +22,7 @@ else:
     import Queue as queue
 
 PROG_STRING    = 'livestreamer-curses'
-VERSION_STRING = '1.2.0'
+VERSION_STRING = '1.3.0'
 TITLE_STRING   = '{0} v{1}'.format(PROG_STRING, VERSION_STRING)
 
 ID_FIELD_WIDTH   = 6
