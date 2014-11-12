@@ -71,20 +71,14 @@ class ProcessList(object):
         """ Check is the List is full, returns a bool """
         return len(self.q) == 0
 
-    def put(self, idf, *args):
-        """ Spawn a new background process
-
-        idf   : int, id of the process,
-               unique among the queue or will raise QueueDuplicate
-        args : optional arguments to pass to the callable
-
-        """
+    def put(self, stream, cmd):
+        """ Spawn a new background process """
 
         if len(self.q) < self.max_size:
-            if idf in self.q:
+            if stream['id'] in self.q:
                 raise QueueDuplicate
-            p = self.call(*args)
-            self.q[idf] = p
+            p = self.call(stream, cmd)
+            self.q[stream['id']] = p
         else:
             raise QueueFull
 
@@ -132,9 +126,16 @@ class ProcessList(object):
 class StreamPlayer(object):
     """ Provides a callable to play a given url """
 
-    def play(self, url, res, cmd=['livestreamer']):
+    def play(self, stream, cmd=['livestreamer']):
         full_cmd = list(cmd)
-        full_cmd.extend([url, res])
+        for k in stream.keys():
+            for i, arg in enumerate(full_cmd):
+                if k == 'seen':
+                    key = 'views'
+                else:
+                    key = k
+                full_cmd[i] = arg.replace('{{'+key+'}}', stream[k].__str__())
+        full_cmd.extend([stream['url'], stream['res']])
         return Popen(full_cmd, stdout=PIPE, stderr=STDOUT)
 
 class StreamList(object):
@@ -883,7 +884,7 @@ class StreamList(object):
         pad = self.pads[self.current_pad]
         s = self.filtered_streams[pad.getyx()[0]]
         try:
-            self.q.put(s['id'], s['url'], s['res'], self.cmd)
+            self.q.put(s, self.cmd)
             self.bump_stream(s, throttle=True)
             self.redraw_current_line()
             self.refresh_current_pad()

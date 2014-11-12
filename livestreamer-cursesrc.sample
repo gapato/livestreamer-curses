@@ -19,8 +19,11 @@ def DEFAULT_RESOLUTION(url):
         return '480p'
 
 # List of different commands to call livestreamer. Cycle with L.
+# {{key}} can be used anywhere in the command line, where key can be
+# id, url, name, res, views, last_seen, online
+# NOTE: url and resolution are appended automatically
 LIVESTREAMER_COMMANDS = [
-    "livestreamer -p 'vlc --qt-minimal-view'",
+    "livestreamer -p 'vlc --qt-minimal-view --meta-title {{name}}'",
     "livestreamer -p 'vlc --qt-minimal-view' --rtmpdump-proxy localhost:1234"
 ]
 
