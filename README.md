@@ -11,10 +11,13 @@ With it you can manage a list of your favorite streams and play them (several at
 
 Install using `pip install livestreamer-curses` which will provide the `livestreamer-curses` command
 
-To change the way to call `livestreamer`, use the configuration file (default: `~/.livestreamer-cursesrc`).
-See sample file for usage.
+To change the way to call `livestreamer`, use the configuration file
+(see `livestreamer-curses -h` for default location). See sample file for configuration options.
 
 ### Changelog
+
+* v1.4.0 (13 Nov. 2014)
+   * Feature: Templatable command line
 
 * v1.3.0 (25 Sep. 2014)
    * Feature: Follow XDG specification, *you need to move your old rc and .db files, use -h flag to see where*

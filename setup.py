@@ -8,7 +8,7 @@ srcdir = join(dirname(abspath(__file__)), "src/")
 path.insert(0, srcdir)
 
 setup(name="livestreamer-curses",
-      version="1.3.0",
+      version="1.4.0",
       description="Livestreamer-curses is a curses frontend to livestreamer",
       url="http://github.com/gapato/livestreamer-curses",
       author="Gapato",
