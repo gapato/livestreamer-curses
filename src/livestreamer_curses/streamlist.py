@@ -12,6 +12,7 @@ import json
 import sys
 import curses
 import os
+import livestreamer
 from livestreamer import Livestreamer
 
 PY3 = sys.version_info.major >= 3
@@ -23,7 +24,7 @@ else:
 
 PROG_STRING    = 'livestreamer-curses'
 VERSION_STRING = '1.4.0'
-TITLE_STRING   = '{0} v{1}'.format(PROG_STRING, VERSION_STRING)
+TITLE_STRING   = '{0} v{1} with Livestreamer v{2}'.format(PROG_STRING, VERSION_STRING, livestreamer.__version__)
 
 ID_FIELD_WIDTH   = 6
 NAME_FIELD_WIDTH = 22
