@@ -29,38 +29,39 @@ import os
 import imp
 import json
 
+from . import config
+
 from .streamlist import StreamList
 
-RC_DEFAULT_DIR  = (os.environ.get('XDG_CONFIG_HOME') or
-                  os.path.expanduser(u'~/.config/livestreamer-curses'))
-RC_DEFAULT_PATH = os.path.join(RC_DEFAULT_DIR, u'livestreamer-cursesrc')
-DB_DEFAULT_DIR  = (os.environ.get('XDG_DATA_HOME') or
-                  os.path.expanduser(u'~/.local/share/livestreamer-curses'))
-DB_DEFAULT_PATH = os.path.join(DB_DEFAULT_DIR, u'livestreamer-curses.db')
-
 def main():
+    global config
+
     parser = argparse.ArgumentParser(description='Livestreamer curses frontend.')
     try:
         arg_type = unicode
     except:
         arg_type = str
-    parser.add_argument('-d', type=arg_type, metavar='database', help=u'default: ' + DB_DEFAULT_PATH,
-                       default=os.path.join(DB_DEFAULT_PATH))
-    parser.add_argument('-f', type=arg_type, metavar='configfile', help=u'default: ' + RC_DEFAULT_PATH,
-                        default=os.path.join(RC_DEFAULT_PATH))
+    parser.add_argument('-d', type=arg_type, metavar='database', help=u'default: ' + config.DB_DEFAULT_PATH,
+                       default=os.path.join(config.DB_DEFAULT_PATH))
+    parser.add_argument('-f', type=arg_type, metavar='configfile', help=u'default: ' + config.RC_DEFAULT_PATH,
+                        default=os.path.join(config.RC_DEFAULT_PATH))
     parser.add_argument('-p', action='store', type=arg_type, metavar='JSON file', help='load (overwrite) database with data from this file. Use - for stdin')
     parser.add_argument('-l', action='store_true', help='print the list of streams and exit')
     args = parser.parse_args()
 
+    print dir(config)
+
     rc_filename = args.f
     if os.path.exists(rc_filename):
         try:
-            rc_module = imp.load_source('rc', rc_filename)
+            config2 = imp.load_source('config', rc_filename)
+            print 'foo'
         except Exception as e:
             sys.stderr.write('Failed to read rc file, error was:\n{0}\n'.format(str(e)))
             sys.exit(1)
-    else:
-        rc_module = imp.new_module('rc')
+
+    print dir(config)
+    print dir(config2)
 
     init_stream_list = []
     if args.p:
@@ -85,7 +86,7 @@ def main():
             return True
         init_stream_list = list(filter(check_stream, init_stream_list))
 
-    l = StreamList(args.d, rc_module, list_streams=args.l, init_stream_list=init_stream_list)
+    l = StreamList(args.d, config, list_streams=args.l, init_stream_list=init_stream_list)
     if not args.l:
         curses.wrapper(l)
 
