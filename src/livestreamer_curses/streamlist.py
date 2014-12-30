@@ -297,7 +297,7 @@ class StreamList(object):
                 if self.config.CHECK_ONLINE_INTERVAL <= 0: continue
                 cur_time = int(time())
                 time_delta = cur_time - self.last_autocheck
-                if time_delta > self.config.CHECK_ONLINE_THREADS:
+                if time_delta > self.config.CHECK_ONLINE_INTERVAL:
                     self.check_online_streams()
                     self.set_status('Next check in {0} secs'.format(self.config.CHECK_ONLINE_INTERVAL))
                 continue
