@@ -7,8 +7,10 @@ from sys import path
 srcdir = join(dirname(abspath(__file__)), "src/")
 path.insert(0, srcdir)
 
+from livestreamer_curses import config
+
 setup(name="livestreamer-curses",
-      version="1.4.0",
+      version=config.VERSION,
       description="Livestreamer-curses is a curses frontend to livestreamer",
       url="http://github.com/gapato/livestreamer-curses",
       author="Gapato",

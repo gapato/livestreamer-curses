@@ -12,8 +12,10 @@ import json
 import sys
 import curses
 import os
+
+from IPython import embed
+
 import livestreamer
-from livestreamer import Livestreamer
 
 PY3 = sys.version_info.major >= 3
 
@@ -23,25 +25,13 @@ else:
     import Queue as queue
 
 PROG_STRING    = 'livestreamer-curses'
-VERSION_STRING = '1.4.0'
-TITLE_STRING   = '{0} v{1} with Livestreamer v{2}'.format(PROG_STRING, VERSION_STRING, livestreamer.__version__)
+TITLE_STRING   = '{0} v{{0}} with Livestreamer v{1}'.format(PROG_STRING, livestreamer.__version__)
 
 ID_FIELD_WIDTH   = 6
 NAME_FIELD_WIDTH = 22
 RES_FIELD_WIDTH  = 12
 VIEWS_FIELD_WIDTH = 7
 PLAYING_FIELD_OFFSET = ID_FIELD_WIDTH + NAME_FIELD_WIDTH + RES_FIELD_WIDTH + VIEWS_FIELD_WIDTH + 6
-
-DEFAULT_RESOLUTION_HARD = '480p'
-
-INDICATORS = [
-        '  x  ', # offline
-        ' >>> ', # streaming
-        '  ?  ', # unknown
-        '  !  '  # error
-]
-
-CHECK_ONLINE_THREADS = 15
 
 class QueueFull(Exception): pass
 class QueueDuplicate(Exception): pass
@@ -141,8 +131,10 @@ class StreamPlayer(object):
 
 class StreamList(object):
 
-    def __init__(self, filename, rc_module, list_streams=False, init_stream_list=None):
+    def __init__(self, filename, config, list_streams=False, init_stream_list=None):
         """ Init and try to load a stream list, nothing about curses yet """
+
+        global TITLE_STRING
 
         self.db_was_read = False
 
@@ -186,19 +178,15 @@ class StreamList(object):
         self.filter = ''
         self.all_streams_offline = None
         self.show_offline_streams = False
-        self.rc_module = rc_module
+        self.config = config
 
-        if 'LIVESTREAMER_COMMANDS' in dir(self.rc_module):
-            self.cmd_list = list(map(shlex.split, self.rc_module.LIVESTREAMER_COMMANDS))
-        else:
-            self.cmd_list = [['livestreamer']]
+        TITLE_STRING = TITLE_STRING.format(self.config.VERSION)
+
+        self.cmd_list = list(map(shlex.split, self.config.LIVESTREAMER_COMMANDS))
         self.cmd_index = 0
         self.cmd = self.cmd_list[self.cmd_index]
 
-        if 'DEFAULT_RESOLUTION' in dir(self.rc_module):
-            self.default_res = self.rc_module.DEFAULT_RESOLUTION
-        else:
-            self.default_res = DEFAULT_RESOLUTION_HARD
+        self.default_res = self.config.DEFAULT_RESOLUTION
 
         self.store = f
         self.store.sync()
@@ -207,7 +195,7 @@ class StreamList(object):
         self.no_stream_shown = self.no_streams
         self.q = ProcessList(StreamPlayer().play)
 
-        self.livestreamer = Livestreamer()
+        self.livestreamer = livestreamer.Livestreamer()
 
     def __del__(self):
         """ Stop playing streams and sync storage """
@@ -250,7 +238,7 @@ class StreamList(object):
 
         signal.signal(28, self.resize)
 
-        if 'CHECK_ONLINE_ON_START' in dir(self.rc_module) and self.rc_module.CHECK_ONLINE_ON_START:
+        if self.config.CHECK_ONLINE_ON_START:
             self.check_online_streams()
 
         self.set_status('Ready')
@@ -588,9 +576,9 @@ class StreamList(object):
         views  = '{0} '.format(stream['seen']).rjust(VIEWS_FIELD_WIDTH)
         p = self.q.get_process(stream['id']) != None
         if p:
-            indicator = '[>>>]'
+            indicator = self.config.INDICATORS[4] # playing
         else:
-            indicator = INDICATORS[stream['online']]
+            indicator = self.config.INDICATORS[stream['online']]
         return '{0} {1} {2} {3}   {4}'.format(idf, name, res, views, indicator)
 
     def redraw_current_line(self):
@@ -638,7 +626,7 @@ class StreamList(object):
                     else:
                         attr = curses.A_NORMAL
                     self.pads['streams'].addstr(i, PLAYING_FIELD_OFFSET,
-                                                INDICATORS[s['online']], attr)
+                                                self.config.INDICATORS[s['online']], attr)
                     self.refresh_current_pad()
 
     def _check_stream(self, url):
@@ -663,7 +651,7 @@ class StreamList(object):
             done_queue.put(url)
             return status
 
-        pool = Pool(CHECK_ONLINE_THREADS)
+        pool = Pool(self.config.CHECK_ONLINE_THREADS)
         args = [(s['url'], done_queue) for s in self.streams]
         statuses = pool.map_async(check_stream_managed, args)
         n_streams = len(self.streams)
