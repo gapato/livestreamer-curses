@@ -186,6 +186,8 @@ class StreamList(object):
         self.cmd_index = 0
         self.cmd = self.cmd_list[self.cmd_index]
 
+        self.last_autocheck = 0
+
         self.default_res = self.config.DEFAULT_RESOLUTION
 
         self.store = f
@@ -290,6 +292,14 @@ class StreamList(object):
             try:
                 (r, w, x) = select.select(souts, [], [], 1)
             except select.error:
+                continue
+            if not r:
+                if self.config.CHECK_ONLINE_INTERVAL <= 0: continue
+                cur_time = int(time())
+                time_delta = cur_time - self.last_autocheck
+                if time_delta > self.config.CHECK_ONLINE_THREADS:
+                    self.check_online_streams()
+                    self.set_status('Next check in {0} secs'.format(self.config.CHECK_ONLINE_INTERVAL))
                 continue
             for fd in r:
                 if fd != sys.stdin:
@@ -668,6 +678,7 @@ class StreamList(object):
                 self.all_streams_offline = False
 
         self.refilter_streams()
+        self.last_autocheck = int(time())
 
     def prompt_input(self, prompt=''):
         self.s.move(self.max_y, 0)

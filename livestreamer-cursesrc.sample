@@ -29,3 +29,7 @@ LIVESTREAMER_COMMANDS = [
 
 # Whether to check for online streams on start
 CHECK_ONLINE_ON_START = False
+
+# Check for online streams each N seconds
+# 0 to disable
+CHECK_ONLINE_INTERVAL = 60
