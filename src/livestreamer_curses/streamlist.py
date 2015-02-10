@@ -1,4 +1,4 @@
-from time import sleep, time
+from time import sleep, time, strftime, localtime
 import shelve
 import shlex
 from subprocess import STDOUT, Popen, PIPE
@@ -25,7 +25,7 @@ else:
     import Queue as queue
 
 PROG_STRING    = 'livestreamer-curses'
-TITLE_STRING   = '{0} v{{0}} with Livestreamer v{1}'.format(PROG_STRING, livestreamer.__version__)
+TITLE_STRING   = 'v{{0}} with Livestreamer v{1}'.format(PROG_STRING, livestreamer.__version__)
 
 ID_FIELD_WIDTH   = 6
 NAME_FIELD_WIDTH = 22
@@ -299,7 +299,9 @@ class StreamList(object):
                 time_delta = cur_time - self.last_autocheck
                 if time_delta > self.config.CHECK_ONLINE_INTERVAL:
                     self.check_online_streams()
-                    self.set_status('Next check in {0} secs'.format(self.config.CHECK_ONLINE_INTERVAL))
+                    self.set_status('Next check at {0}'.format(
+                        strftime('%H:%M:%S', localtime(time() + self.config.CHECK_ONLINE_INTERVAL))
+                        ))
                 continue
             for fd in r:
                 if fd != sys.stdin:
