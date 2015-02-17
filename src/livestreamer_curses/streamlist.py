@@ -682,6 +682,8 @@ class StreamList(object):
         self.refilter_streams()
         self.last_autocheck = int(time())
 
+        pool.close()
+
     def prompt_input(self, prompt=''):
         self.s.move(self.max_y, 0)
         self.s.clrtoeol()
