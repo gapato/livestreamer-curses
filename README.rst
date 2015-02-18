@@ -23,9 +23,9 @@ To change the way to call ``livestreamer``, use the configuration file
 Changelog
 ~~~~~~~~~
 
--  v1.5.1 (2015-02-17)
+-  v1.5.2 (2015-02-18)
 
-   - Bugfix: Fix python 3 imports
+   - Bugfixes: Fix imports
 
 -  v1.5.0 (2015-02-17)
 
