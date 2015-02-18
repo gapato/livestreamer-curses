@@ -13,8 +13,6 @@ import sys
 import curses
 import os
 
-from IPython import embed
-
 import livestreamer
 
 PY3 = sys.version_info.major >= 3
