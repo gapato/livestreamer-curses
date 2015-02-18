@@ -23,6 +23,10 @@ To change the way to call ``livestreamer``, use the configuration file
 Changelog
 ~~~~~~~~~
 
+-  v1.5.1 (2015-02-17)
+
+   - Bugfix: Fix python 3 imports
+
 -  v1.5.0 (2015-02-17)
 
    - Feature: Periodically check if streams are online (foreground and blocking, for now). Corresponding configuration variable: ``CHECK_ONLINE_INTERVAL``
