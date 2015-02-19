@@ -1,15 +1,19 @@
 Livestreamer-curses
 -------------------
 
+.. image:: https://img.shields.io/pypi/v/livestreamer-curses.svg
+   :target: https://pypi.python.org/pypi/livestreamer-curses/
+
+.. image:: https://img.shields.io/pypi/l/livestreamer-curses.svg
+   :target: https://pypi.python.org/pypi/livestreamer-curses/
+
 Livestreamer-curses is a limited front-end to Chrippa's
 `Livestreamer <https://github.com/chrippa/livestreamer>`__ for UNIX
 systems. With it you can manage a list of your favorite streams and play
 them (several at a time if your connection can handle it).
 
-.. figure:: http://s30.postimg.org/j310vhhkh/screenshot.png
+.. image:: http://s30.postimg.org/j310vhhkh/screenshot.png
    :alt: screenshot
-
-   screenshot
 
 Usage
 ~~~~~
